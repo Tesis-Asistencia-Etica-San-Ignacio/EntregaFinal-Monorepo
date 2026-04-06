@@ -20,7 +20,8 @@ The platform allows committee members to upload protocols, receive AI-generated 
 ### Repository
 
 - **URL**: https://github.com/Tesis-Asistencia-Etica-San-Ignacio/EntregaFinal.git
-- **Release tag**: `v1.0.0`
+- **Latest release tag**: `v1.1.0`
+- **Thesis base release**: `v1.0.0`
 - **License**: MIT
 
 ---
