@@ -5,6 +5,8 @@ import AccountTemplate from "@/components/templates/settings/AccountTemplate";
 import { FormField } from "@/types/formTypes";
 import { useUpdateUser } from "@/hooks/user/useUpdateUser";
 import { useUpdatePassword } from "@/hooks/user/useUpdatePassword";
+import { validateEmail } from "@/lib/validation/email";
+import { validateStrongPassword } from "@/lib/validation/password";
 
 export default function AccountScreen() {
   const { user } = useAuthContext();
@@ -35,38 +37,24 @@ export default function AccountScreen() {
       key: "email",
       placeholder: "Correo electrónico",
       required: true,
+      customValidation: validateEmail,
     },
   ];
 
   const passwordFields: FormField[] = [
-
     {
       type: "password",
       key: "password",
       placeholder: "Contraseña actual",
       required: true,
-      customValidation: (value: string) => {
-        if (!/.{8,}/.test(value)) return "Debe tener al menos 8 caracteres";
-        if (!/[A-Z]/.test(value)) return "Debe incluir al menos una letra mayúscula";
-        if (!/[a-z]/.test(value)) return "Debe incluir al menos una letra minúscula";
-        if (!/[0-9]/.test(value)) return "Debe incluir al menos un número";
-        if (!/[^A-Za-z0-9]/.test(value)) return "Debe incluir al menos un carácter especial";
-        return undefined;
-      },
+      customValidation: validateStrongPassword,
     },
     {
       type: "password",
       key: "newPassword",
       placeholder: "Nueva contraseña",
       required: true,
-      customValidation: (value: string) => {
-        if (!/.{8,}/.test(value)) return "Debe tener al menos 8 caracteres";
-        if (!/[A-Z]/.test(value)) return "Debe incluir al menos una letra mayúscula";
-        if (!/[a-z]/.test(value)) return "Debe incluir al menos una letra minúscula";
-        if (!/[0-9]/.test(value)) return "Debe incluir al menos un número";
-        if (!/[^A-Za-z0-9]/.test(value)) return "Debe incluir al menos un carácter especial";
-        return undefined;
-      },
+      customValidation: validateStrongPassword,
     },
   ];
 

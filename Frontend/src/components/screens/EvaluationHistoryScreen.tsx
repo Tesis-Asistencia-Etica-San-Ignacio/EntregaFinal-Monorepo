@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import type { ColumnFiltersState, SortingState } from '@tanstack/react-table';
 import HistoryTemplate from '../templates/HistoryTemplate';
 import useGetEvaluationsByUserHook from '@/hooks/evaluation/useGetEvaluationByUser';
 import useDeleteEvaluationHook from '@/hooks/evaluation/useDeleteEvaluation';
@@ -7,33 +8,54 @@ import useUpdateEvaluationHook from '@/hooks/evaluation/useUpdateEvaluation';
 import type { ColumnConfig } from '@/types/table';
 import type { FormField } from '@/types/formTypes';
 import { CheckCircle, Circle } from 'lucide-react';
-import { useAuthContext } from "@/context/AuthContext"
+import { useAuthContext } from "@/context/AuthContext";
 import useFetchCasePdf from "@/hooks/pdf/useFetchCasesPdf";
 import ModalForm from "@/components/organisms/dialogs/ModalForm";
 import PdfRenderer from "@/components/organisms/PdfRenderer";
 
 export default function EvaluationHistoryScreen() {
-  const { user } = useAuthContext()
-  const iaReady = !!(user?.provider && user?.modelo)
+  const { user } = useAuthContext();
+  const iaReady = !!(user?.provider && user?.modelo);
   const navigate = useNavigate();
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [search, setSearch] = useState('');
+  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
+  const [sorting, setSorting] = useState<SortingState>([]);
 
-  // ─── React Query hooks ─────────────────────────────────────────────
-  const { files } = useGetEvaluationsByUserHook();
+  const remoteFilters = useMemo<Record<string, string[]>>(
+    () =>
+      columnFilters.reduce<Record<string, string[]>>((acc, filter) => {
+        if (Array.isArray(filter.value) && filter.value.length > 0) {
+          acc[filter.id] = filter.value.map((value) => String(value));
+        }
+        return acc;
+      }, {}),
+    [columnFilters]
+  );
+
+  const currentSort = sorting[0];
+
+  const { files, pagination, isLoading } = useGetEvaluationsByUserHook({
+    page,
+    pageSize,
+    search,
+    filters: remoteFilters,
+    sortBy: currentSort?.id,
+    sortOrder: currentSort ? (currentSort.desc ? 'desc' : 'asc') : undefined,
+  });
   const { deleteEvaluation } = useDeleteEvaluationHook();
   const { updateEvaluation } = useUpdateEvaluationHook();
 
-  // ─── UI state ───────────────────────────────────────────────────────
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [confirmValue, setConfirmValue] = useState('');
   const [toDeleteId, setToDeleteId] = useState<string>('');
   const [selectedRow, setSelectedRow] = useState<any | null>(null);
   const [editModalOpen, setEditModalOpen] = useState(false);
 
-  // pdf
   const [pdfModalOpen, setPdfModalOpen] = useState(false);
   const { pdfUrl, fetchCasePdf, loading: pdfLoading } = useFetchCasePdf();
 
-  // ─── Transformación de datos ────────────────────────────────────────
   const tableData = useMemo(
     () =>
       files.map((f: any) => ({
@@ -51,7 +73,6 @@ export default function EvaluationHistoryScreen() {
     [files]
   );
 
-  // ─── Handlers de la tabla ───────────────────────────────────────────
   const handleRowClick = (row: any) => {
     setSelectedRow(row);
   };
@@ -61,15 +82,29 @@ export default function EvaluationHistoryScreen() {
     setEditModalOpen(true);
   };
 
+  const buildBreadcrumbLabel = (row: any) => {
+    if (row.id_fundanet && row.id_fundanet !== 'Información de fundanet') {
+      return `${row.id} (${row.id_fundanet} - v${row.version})`;
+    }
+
+    return `${row.id} (${row.file})`;
+  };
+
   const handleVerMas = (row: any) => {
     navigate(`/evaluacion/${row.id}`, {
-      state: { runGenerate: row.estado === 'PENDIENTE' },
+      state: {
+        runGenerate: row.estado === 'PENDIENTE',
+        breadcrumbLabel: buildBreadcrumbLabel(row),
+      },
     });
   };
 
   const handleReEvaluate = (row: any) => {
     navigate(`/evaluacion/${row.id}`, {
-      state: { runReEvaluate: true },
+      state: {
+        runReEvaluate: true,
+        breadcrumbLabel: buildBreadcrumbLabel(row),
+      },
     });
   };
 
@@ -85,12 +120,11 @@ export default function EvaluationHistoryScreen() {
   };
 
   const handleConfirmDelete = async (): Promise<void> => {
-    deleteEvaluation(toDeleteId);
+    await deleteEvaluation(toDeleteId);
     setDeleteDialogOpen(false);
     setConfirmValue('');
   };
 
-  // ─── Submit de edición ──────────────────────────────────────────────
   const handleEditSubmit = (data: any) => {
     if (!selectedRow) return;
     const params = {
@@ -104,28 +138,20 @@ export default function EvaluationHistoryScreen() {
     setEditModalOpen(false);
   };
 
-  // ─── Datos iniciales del modal ──────────────────────────────────────
   const editInitialData = selectedRow
     ? {
-      id_fundanet: selectedRow.id_fundanet ?? '',
-      correo_estudiante: selectedRow.correo_estudiante ?? '',
-      tipo_error: selectedRow.tipo_error ?? '',
-      aprobado: selectedRow.aprobado === 'approved' ? 'true' : 'false',
-      estado: selectedRow.estado ?? '',
-    }
+        id_fundanet: selectedRow.id_fundanet ?? '',
+        correo_estudiante: selectedRow.correo_estudiante ?? '',
+        tipo_error: selectedRow.tipo_error ?? '',
+        aprobado: selectedRow.aprobado === 'approved' ? 'true' : 'false',
+        estado: selectedRow.estado ?? '',
+      }
     : {};
 
-  // ─── Campos base para la edición ───────────────────────────────────
   const editModalFields: FormField[][] = [
-    [
-      { type: 'document', key: 'id_fundanet', placeholder: 'ID del documento en FundaNet' },
-    ],
-    [
-      { type: 'email', key: 'correo_estudiante', placeholder: 'Correo del estudiante' },
-    ],
-    [
-      { type: 'textarea', key: 'tipo_error', placeholder: 'Tipo de error', autoAdjust: true },
-    ],
+    [{ type: 'document', key: 'id_fundanet', placeholder: 'ID del documento en FundaNet' }],
+    [{ type: 'email', key: 'correo_estudiante', placeholder: 'Correo del estudiante' }],
+    [{ type: 'textarea', key: 'tipo_error', placeholder: 'Tipo de error', autoAdjust: true }],
     [
       {
         type: 'select',
@@ -153,21 +179,10 @@ export default function EvaluationHistoryScreen() {
     ],
   ];
 
-  // ─── Columnas de la tabla ────────────────────────────────────────────
   const columnsConfig: ColumnConfig[] = [
     { id: 'id', accessorKey: 'id', headerLabel: 'ID', searchable: true },
-    {
-      id: 'id_fundanet',
-      accessorKey: 'id_fundanet',
-      headerLabel: 'ID FundaNet',
-      searchable: true,
-    },
-    {
-      id: 'version',
-      accessorKey: 'version',
-      headerLabel: 'Version',
-      searchable: true,
-    },
+    { id: 'id_fundanet', accessorKey: 'id_fundanet', headerLabel: 'ID FundaNet', searchable: true },
+    { id: 'version', accessorKey: 'version', headerLabel: 'Version', searchable: true },
     {
       id: 'correo_estudiante',
       accessorKey: 'correo_estudiante',
@@ -207,7 +222,7 @@ export default function EvaluationHistoryScreen() {
           onClick: handleVerMas,
           visible: row => !['EVALUADO', 'EN CURSO'].includes(row.estado),
           disabled: !iaReady,
-          tooltip: "Configura proveedor y modelo en Ajustes → IA"
+          tooltip: "Configura proveedor y modelo en Ajustes → IA",
         },
         {
           label: 'Ver detalles',
@@ -219,7 +234,7 @@ export default function EvaluationHistoryScreen() {
           onClick: handleReEvaluate,
           visible: r => ['EVALUADO', 'EN CURSO'].includes(r.estado),
           disabled: !iaReady,
-          tooltip: "Configura proveedor y modelo en Ajustes → IA"
+          tooltip: "Configura proveedor y modelo en Ajustes → IA",
         },
         { label: 'Ver PDF', onClick: handleViewPdf },
         { label: 'Eliminar', onClick: handleDelete },
@@ -227,23 +242,45 @@ export default function EvaluationHistoryScreen() {
     },
   ];
 
-  // ─── Render ─────────────────────────────────────────────────────────
   return (
     <HistoryTemplate
-      /* Tabla */
       data={tableData}
       columnsConfig={columnsConfig}
       onRowClick={handleRowClick}
       selectedRowId={selectedRow?.id}
-
-      /* Eliminación */
+      tableLoading={isLoading}
+      paginationTableState={{
+        page,
+        pageSize,
+        totalItems: pagination?.totalItems ?? 0,
+        totalPages: pagination?.totalPages ?? 1,
+        facetCounts: pagination?.facets,
+        search,
+        columnFilters,
+        sorting,
+        onPageChange: setPage,
+        onPageSizeChange: (nextPageSize) => {
+          setPageSize(nextPageSize);
+          setPage(1);
+        },
+        onSearchChange: (nextSearch) => {
+          setSearch(nextSearch);
+          setPage(1);
+        },
+        onColumnFiltersChange: (nextFilters) => {
+          setColumnFilters(nextFilters);
+          setPage(1);
+        },
+        onSortingChange: (nextSorting) => {
+          setSorting(nextSorting);
+          setPage(1);
+        },
+      }}
       deleteDialogOpen={deleteDialogOpen}
       onDeleteDialogChange={setDeleteDialogOpen}
       onConfirmDelete={handleConfirmDelete}
       confirmValue={confirmValue}
       onConfirmValueChange={setConfirmValue}
-
-      /* Edición */
       open={editModalOpen}
       onOpenChange={open => {
         setEditModalOpen(open);
@@ -251,10 +288,7 @@ export default function EvaluationHistoryScreen() {
       }}
       modalFormFields={editModalFields}
       onModalSubmit={handleEditSubmit}
-
       DataSelectedRow={editInitialData}
-
-      /* PDF */
       extraModal={
         <ModalForm
           open={pdfModalOpen}

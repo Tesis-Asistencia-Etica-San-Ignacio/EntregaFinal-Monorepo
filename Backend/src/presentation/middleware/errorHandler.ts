@@ -1,7 +1,9 @@
 import { Request, Response, NextFunction } from 'express';
+import multer from 'multer';
 
 interface CustomError extends Error {
-  code?: number;
+  code?: number | string;
+  statusCode?: number;
   keyValue?: Record<string, unknown>;
   errors?: Record<string, { message: string }>;
   path?: string;
@@ -46,6 +48,19 @@ export const errorHandlerMiddleware = (
   else if (err.name === 'ForbiddenError') {
     statusCode = 403;
     message = 'No tienes permiso para acceder a este recurso.';
+  }
+  else if (typeof err.statusCode === 'number') {
+    statusCode = err.statusCode;
+    message = err.message;
+  }
+  else if (err instanceof multer.MulterError) {
+    if (err.code === 'LIMIT_FILE_SIZE') {
+      statusCode = 413;
+      message = 'El archivo excede el tamaño máximo permitido.';
+    } else {
+      statusCode = 400;
+      message = err.message;
+    }
   }
 
   res.status(statusCode).json({

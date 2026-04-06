@@ -1,6 +1,8 @@
-import { useForm, FormProvider } from "react-hook-form"
+import React, { forwardRef, useEffect, useImperativeHandle, useRef } from "react"
+import { FormProvider, useForm } from "react-hook-form"
 import { z } from "zod"
 import { zodResolver } from "@hookform/resolvers/zod"
+import isEqual from "lodash.isequal"
 import { cn } from "@/lib/utils"
 import {
     FormControl,
@@ -27,79 +29,69 @@ import type {
     FieldType,
 } from "@/types/formTypes"
 import { LTMatch } from "@/lib/api/languageApi"
-
-
 import CalendarPicker from "./calendars/DatePicker"
-import React, { useEffect, useRef, forwardRef, useImperativeHandle } from "react"
-import isEqual from "lodash.isequal"
+
 function baseValidationForType(type: FieldType): z.ZodTypeAny {
-    // declara schema como “cualquier Zod” (no sólo string)
     let schema: z.ZodTypeAny
 
     switch (type) {
-        /* ──────── casillas tipo string ─────────── */
         case "email":
             schema = z.string().trim()
-                .email("El email no es válido")
-                .max(50, "Máximo 50 caracteres")
+                .email("El email no es valido")
+                .max(50, "Maximo 50 caracteres")
             break
         case "password":
             schema = z.string().trim()
-                .max(200, "Máximo 200 caracteres")
+                .max(200, "Maximo 200 caracteres")
             break
         case "phone":
             schema = z.string().trim()
-                .regex(/^\d+$/, "Solo dígitos")
-                .max(10, "Máximo 10 dígitos")
+                .regex(/^\d+$/, "Solo digitos")
+                .max(10, "Maximo 10 digitos")
             break
         case "extension-phone":
             schema = z.string().trim()
-                .regex(/^\d+$/, "Solo dígitos")
-                .max(2, "Máximo 2 dígitos")
+                .regex(/^\d+$/, "Solo digitos")
+                .max(2, "Maximo 2 digitos")
             break
         case "document":
-            schema = z.string().trim().max(50, "Máximo 50 caracteres")
+            schema = z.string().trim().max(50, "Maximo 50 caracteres")
             break
         case "user":
-            schema = z.string().trim().max(40, "Máximo 40 caracteres")
+            schema = z.string().trim().max(40, "Maximo 40 caracteres")
             break
         case "address":
-            schema = z.string().trim().max(100, "Máximo 100 caracteres")
+            schema = z.string().trim().max(100, "Maximo 100 caracteres")
             break
-
-        case "datePicker": {
+        case "datePicker":
             schema = z.preprocess(
-                (v) => {
-                    if (v instanceof Date) return v
-                    const d = new Date(v as any)
-                    return isNaN(d.getTime()) ? undefined : d
+                (value) => {
+                    if (value instanceof Date) return value
+                    const date = new Date(value as any)
+                    return Number.isNaN(date.getTime()) ? undefined : date
                 },
-                z.date()
+                z.date({
+                    required_error: "Este campo es requerido",
+                    invalid_type_error: "Este campo es requerido",
+                })
             )
             break
-        }
-
-
-        /* ──────── numérico ─────────────────────── */
         case "number": {
             const preprocessNumber = z.preprocess(
-                (v) => {
-                    if (v === "" || v === null || v === undefined) return undefined
-                    const n = Number(v)
-                    return Number.isNaN(n) ? NaN : n
+                (value) => {
+                    if (value === "" || value === null || value === undefined) return undefined
+                    const parsed = Number(value)
+                    return Number.isNaN(parsed) ? NaN : parsed
                 },
-                z.number().min(1, "El número debe ser mayor a 0")
-                    .optional()       // permite undefined
+                z.number().min(1, "El numero debe ser mayor a 0").optional()
             )
 
             schema = preprocessNumber.refine(
-                (v) => v === undefined || !Number.isNaN(v),
-                { message: "Debe ser un número" }
+                (value) => value === undefined || !Number.isNaN(value),
+                { message: "Debe ser un numero" }
             )
             break
         }
-
-        /* ─────── por defecto: string simple ─────── */
         default:
             schema = z.string().trim()
             break
@@ -111,45 +103,39 @@ function baseValidationForType(type: FieldType): z.ZodTypeAny {
 export function buildZodSchemaForField(field: FormField): z.ZodTypeAny {
     let schema = baseValidationForType(field.type)
 
-    /* ───── Campo requerido ───────────────────── */
     if (field.required) {
         if (schema instanceof z.ZodString) {
             schema = schema.nonempty("Este campo es requerido")
         } else {
-            // para números u otros tipos
             schema = schema.refine(
-                (v) => v !== undefined && v !== null && v !== "",
+                (value) => value !== undefined && value !== null && value !== "",
                 { message: "Este campo es requerido" }
             )
         }
     }
 
-    /* ───── min / max sólo en strings ─────────── */
-    if (schema instanceof z.ZodString) {
-        if (typeof field.minLength !== "undefined") {
-            schema = schema.min(field.minLength, `Mínimo ${field.minLength} caracteres`)
-        }
+    if (schema instanceof z.ZodString && typeof field.minLength !== "undefined") {
+        schema = schema.min(field.minLength, `Minimo ${field.minLength} caracteres`)
     }
+
     if (typeof field.maxLength !== "undefined") {
-        schema = (schema as z.ZodString).max(field.maxLength, `Máximo ${field.maxLength} caracteres`
-        )
+        schema = (schema as z.ZodString).max(field.maxLength, `Maximo ${field.maxLength} caracteres`)
     }
 
     if (field.customValidation) {
-        schema = schema.superRefine((val, ctx) => {
-            const error = field.customValidation!(val);
+        schema = schema.superRefine((value, ctx) => {
+            const error = field.customValidation?.(value)
             if (error) {
                 ctx.addIssue({
                     code: z.ZodIssueCode.custom,
                     message: error,
-                });
+                })
             }
-        });
+        })
     }
 
     return schema.default(field.type === "datePicker" ? new Date() : "")
 }
-
 
 function flattenFields(data: FormField[] | FormField[][]): FormField[] {
     if (!Array.isArray(data) || data.length === 0) return []
@@ -157,20 +143,34 @@ function flattenFields(data: FormField[] | FormField[][]): FormField[] {
     return data as FormField[]
 }
 
+function formatSpellMessage(matches: LTMatch[] | undefined) {
+    const warning = matches?.[0]
+    if (!warning) return undefined
+
+    const suggestions = Array.from(
+        new Set(
+            (warning.replacements ?? [])
+                .map((replacement) => replacement.value.trim())
+                .filter(Boolean)
+        )
+    ).slice(0, 3)
+
+    return suggestions.length > 0
+        ? `${warning.message} -> ${suggestions.join(", ")}`
+        : warning.message
+}
 
 export interface DynamicFormHandles {
     handleSubmit: <T>(onValid: (data: any) => T) => (e?: React.BaseSyntheticEvent) => Promise<void>
     trigger: (name?: string | string[]) => Promise<boolean>
     reset: (values?: Record<string, any>) => void
-
+    __formInstance?: ReturnType<typeof useForm>
 }
-
 
 export interface DynamicFormProps {
     formDataConfig: FormField[] | FormField[][]
     onSubmit?: (data: { [key: string]: any }) => void
     onChange?: (data: { [key: string]: any }) => void
-
     onSpellCheck?: (key: string, text: string) => void
     spellWarnings?: Record<string, LTMatch[]>
     containerClassName?: string
@@ -214,7 +214,6 @@ export const DynamicForm = forwardRef<DynamicFormHandles, DynamicFormProps>(({
         reset: form.reset,
     }))
 
-
     useEffect(() => {
         const subscription = watch((values) => {
             onChange?.(values)
@@ -222,19 +221,22 @@ export const DynamicForm = forwardRef<DynamicFormHandles, DynamicFormProps>(({
         return () => subscription.unsubscribe()
     }, [watch, onChange])
 
-    const prevInit = useRef(initialData);
+    const prevInit = useRef(initialData)
 
     useEffect(() => {
         if (!isEqual(prevInit.current, initialData)) {
-            form.reset(initialData);          // sólo si de verdad cambió
-            prevInit.current = initialData;
-        }
-    }, [initialData, form]);
+            const currentValues = form.getValues()
 
+            if (!isEqual(currentValues, initialData)) {
+                form.reset(initialData)
+            }
+
+            prevInit.current = initialData
+        }
+    }, [initialData, form])
 
     const renderField = (field: FormField) => {
-        if (field.hidden === true) return null    // se pinta salvo que sea true
-
+        if (field.hidden === true) return null
 
         return (
             <ShadcnFormField
@@ -243,8 +245,9 @@ export const DynamicForm = forwardRef<DynamicFormHandles, DynamicFormProps>(({
                 name={field.key}
                 render={({ field: controllerField }) => (
                     <FormItem
+                        data-field-key={field.key}
                         className={cn(
-                            field.width ? "max-w-full" : "flex-1",
+                            field.width ? "max-w-full min-w-0" : "basis-0 flex-1 min-w-0",
                             "flex flex-col p-0.5"
                         )}
                         style={field.width ? { width: `${field.width}%` } : {}}
@@ -252,83 +255,87 @@ export const DynamicForm = forwardRef<DynamicFormHandles, DynamicFormProps>(({
                         <FormLabel>{field.label ?? field.placeholder}</FormLabel>
 
                         <FormControl>
-                            {(() => {
-                                if (field.type === "custom") {
-                                    return (field as CustomFormField).component
-                                }
-                                if (field.type === "select") {
-                                    const f = field as SelectFormField
+                            <div className="w-full min-w-0">
+                                {(() => {
+                                    if (field.type === "custom") {
+                                        return (field as CustomFormField).component
+                                    }
+
+                                    if (field.type === "select") {
+                                        const selectField = field as SelectFormField
+                                        return (
+                                            <Select
+                                                value={controllerField.value || ""}
+                                                onValueChange={controllerField.onChange}
+                                            >
+                                                <SelectTrigger className="w-full">
+                                                    <SelectValue
+                                                        placeholder={selectField.selectPlaceholder || selectField.placeholder}
+                                                    />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {selectField.options.map((option) => (
+                                                        <SelectItem key={option.value} value={option.value}>
+                                                            {option.label}
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        )
+                                    }
+
+                                    if (field.type === "textarea") {
+                                        const textAreaField = field as TextAreaFormField
+                                        return (
+                                            <Textarea
+                                                autoAdjust={textAreaField.autoAdjust}
+                                                placeholder={textAreaField.placeholder}
+                                                value={controllerField.value || ""}
+                                                onChange={controllerField.onChange}
+                                                onBlur={(event) => onSpellCheck?.(field.key, event.target.value)}
+                                            />
+                                        )
+                                    }
+
+                                    if (field.type === "datePicker") {
+                                        const dateField = field as DateFormField & { minDate?: Date; maxDate?: Date }
+                                        return (
+                                            <CalendarPicker
+                                                value={controllerField.value as Date | undefined}
+                                                onChange={controllerField.onChange}
+                                                minDate={dateField.minDate}
+                                                maxDate={dateField.maxDate}
+                                                placeholder={dateField.placeholder}
+                                                className="w-full"
+                                            />
+                                        )
+                                    }
+
+                                    const autoComplete =
+                                        field.type === "password"
+                                            ? field.key === "newPassword"
+                                                ? "new-password"
+                                                : "current-password"
+                                            : field.type === "email"
+                                                ? "email"
+                                                : undefined
+
                                     return (
-                                        <Select
-                                            value={controllerField.value || ""}
-                                            onValueChange={controllerField.onChange}
-                                        >
-                                            <SelectTrigger className="w-full">
-                                                <SelectValue
-                                                    placeholder={f.selectPlaceholder || f.placeholder}
-                                                />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {f.options.map((opt) => (
-                                                    <SelectItem key={opt.value} value={opt.value}>
-                                                        {opt.label}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                    )
-                                }
-                                if (field.type === "textarea") {
-                                    const f = field as TextAreaFormField
-                                    return (
-                                        <Textarea
-                                            autoAdjust={f.autoAdjust}
-                                            placeholder={f.placeholder}
+                                        <Input
+                                            inputType={field.type}
+                                            placeholder={field.placeholder}
+                                            autoComplete={autoComplete}
                                             value={controllerField.value || ""}
                                             onChange={controllerField.onChange}
-                                            onBlur={e => onSpellCheck?.(field.key, e.target.value)}
+                                            onBlur={(event) => onSpellCheck?.(field.key, event.target.value)}
                                         />
                                     )
-                                }
-                                if (field.type === "datePicker") {
-                                    const f = field as DateFormField & { minDate?: Date; maxDate?: Date };
-                                    return (
-                                        <CalendarPicker
-                                            value={controllerField.value as Date | undefined}
-                                            onChange={controllerField.onChange}
-                                            minDate={f.minDate}
-                                            maxDate={f.maxDate}
-                                            placeholder={f.placeholder}
-                                            className="w-full"
-                                        />
-                                    );
-                                }
-
-                                // Si es un password, elegimos current- vs new-password según la key
-                                const autoComplete =
-                                    field.type === "password"
-                                        ? field.key === "newPassword"
-                                            ? "new-password"
-                                            : "current-password"
-                                        : field.type === "email"
-                                            ? "email"
-                                            : undefined;
-
-                                return (
-                                    <Input
-                                        inputType={field.type}
-                                        placeholder={field.placeholder}
-                                        autoComplete={autoComplete}
-                                        value={controllerField.value || ""}
-                                        onChange={controllerField.onChange}
-                                        onBlur={e => onSpellCheck?.(field.key, e.target.value)}
-                                    />
-                                )
-                            })()}
+                                })()}
+                            </div>
                         </FormControl>
 
                         <FormMessage className="min-h-[1.25rem]">
-                            {errors[field.key]?.message as string || spellWarnings[field.key]?.[0]?.message}
+                            {errors[field.key]?.message as string || formatSpellMessage(spellWarnings[field.key])}
                         </FormMessage>
                     </FormItem>
                 )}
@@ -343,16 +350,17 @@ export const DynamicForm = forwardRef<DynamicFormHandles, DynamicFormProps>(({
 
     const renderRows = () => {
         const visibleRows = isMultipleRows
-            ? (formDataConfig as FormField[][]).map((row) => row.filter((f) => !f.hidden))
-            : (formDataConfig as FormField[]).filter((f) => !f.hidden)
+            ? (formDataConfig as FormField[][]).map((row) => row.filter((field) => !field.hidden))
+            : (formDataConfig as FormField[]).filter((field) => !field.hidden)
 
         if (isMultipleRows) {
-            return (visibleRows as FormField[][]).map((row, i) => (
-                <div key={i} className="flex flex-wrap gap-4 mb-4">
+            return (visibleRows as FormField[][]).map((row, index) => (
+                <div key={index} className="flex flex-wrap gap-4 mb-4">
                     {row.map((field) => renderField(field))}
                 </div>
             ))
         }
+
         return (visibleRows as FormField[]).map((field) => (
             <div key={field.key} className="mb-4">
                 {renderField(field)}

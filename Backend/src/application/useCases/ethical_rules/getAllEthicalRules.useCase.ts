@@ -1,10 +1,9 @@
-import { IEthicalNormRepository } from "../../../domain";
-import { EthicalNormResponseDto } from "../../dtos";
+import { EthicalNorm, IEthicalNormRepository } from "../../../domain";
 
 export class GetAllEthicalRulesUseCase {
   constructor(private readonly repository: IEthicalNormRepository) { }
 
-  public async execute(): Promise<EthicalNormResponseDto[]> {
+  public async execute(): Promise<EthicalNorm[]> {
     return this.repository.findAll();
   }
 }

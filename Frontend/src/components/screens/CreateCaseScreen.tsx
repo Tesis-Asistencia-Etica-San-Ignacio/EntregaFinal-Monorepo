@@ -11,6 +11,7 @@ import useGeneratePdfInvestigator from "@/hooks/pdf/useGeneratePdfByInvestigator
 import useCreateCaseHook from "@/hooks/cases/useCreateCases";
 import { checkSpellingWithLT, LTMatch } from "@/lib/api/languageApi";
 import { Input } from "../atoms/ui/input-form";
+import { Popover, PopoverContent, PopoverTrigger } from "../atoms/ui/popover";
 import { pick } from "lodash";
 import { SectionConfig } from "@/types/SectionConfig";
 import { useNavigate } from "react-router-dom";
@@ -56,6 +57,7 @@ export default function CreateCaseScreen() {
   const [fecha] = useState<Date>();
   const [openSections, setOpen] = useState({ head: false,intro: false, info: false, auth: false });
   const [spellingWarnings, setWarn] = useState<Record<string, LTMatch[]>>({});
+  const [pendingScrollTarget, setPendingScrollTarget] = useState<{ sectionKey: string; fieldKey?: string } | null>(null);
   // arriba, junto a los demás estados
   const [formData, setFormData] = useState<Record<string, any> | null>(null);
 
@@ -84,14 +86,176 @@ export default function CreateCaseScreen() {
     );
   };
   const onSpellCheck = (k: string, matches: LTMatch[]) => setWarn(p => ({ ...p, [k]: matches }));
+  const clearSpellWarning = (fieldKey: string) =>
+    setWarn((prev) => {
+      if (!(fieldKey in prev)) return prev;
+      const next = { ...prev };
+      delete next[fieldKey];
+      return next;
+    });
+  const spellFieldLabels: Record<string, string> = {
+    patrocinador: "Patrocinador",
+    compania_seguro: "Compañía de seguro",
+    dir_seguro: "Dirección del seguro",
+    nombre_doctor: "Nombre del investigador",
+    nombre_dir_investigaciones: "Dirección de investigaciones",
+    cel_correo_dir_investigaciones: "Contacto de investigaciones",
+    nombre_estudio: "Nombre del estudio",
+    nombre_inv_principal: "Nombre del investigador principal",
+    nombre_presidente: "Nombre del presidente",
+  };
+  const getSpellWarningMessage = (fieldKey: string) => {
+    const warning = spellingWarnings[fieldKey]?.[0];
+    if (!warning) return undefined;
+
+    const suggestions = Array.from(
+      new Set(
+        (warning.replacements ?? [])
+          .map((replacement) => replacement.value.trim())
+          .filter(Boolean)
+      )
+    ).slice(0, 3);
+
+    return suggestions.length > 0
+      ? `${warning.message} -> ${suggestions.join(", ")}`
+      : warning.message;
+  };
+  const scrollToSection = (sectionKey?: string) => {
+    if (!sectionKey) return;
+
+    const section = document.querySelector(`[data-section-key="${sectionKey}"]`) as HTMLElement | null;
+    if (!section) return;
+
+    const top = section.getBoundingClientRect().top + window.scrollY - 160;
+    window.scrollTo({ top: Math.max(top, 0), behavior: "smooth" });
+  };
+  const scrollToFieldOrSection = (sectionKey?: string, fieldKey?: string) => {
+    if (fieldKey) {
+      const escapedFieldKey = typeof CSS !== "undefined" && typeof CSS.escape === "function"
+        ? CSS.escape(fieldKey)
+        : fieldKey;
+      const fieldElement =
+        document.querySelector(`[data-field-key="${escapedFieldKey}"]`) as HTMLElement | null ||
+        document.querySelector(`[name="${escapedFieldKey}"]`) as HTMLElement | null;
+
+      if (fieldElement) {
+        const top = fieldElement.getBoundingClientRect().top + window.scrollY - 180;
+        window.scrollTo({ top: Math.max(top, 0), behavior: "smooth" });
+        const focusTarget =
+          fieldElement.matches("input, textarea, select, button")
+            ? fieldElement
+            : (fieldElement.querySelector("input, textarea, select, button") as HTMLElement | null);
+        if (focusTarget && "focus" in focusTarget && typeof focusTarget.focus === "function") {
+          window.setTimeout(() => focusTarget.focus({ preventScroll: true } as FocusOptions), 80);
+        }
+        return;
+      }
+    }
+
+    scrollToSection(sectionKey);
+  };
+  const renderSpellBlockSummary = (fieldKeys: string[]) => {
+    const items = fieldKeys
+      .map((fieldKey) => {
+        const value = String(methods.getValues(fieldKey) ?? "").trim();
+        const previewValue = value.length > 30 ? `${value.slice(0, 27)}...` : value;
+        return { fieldKey, message: getSpellWarningMessage(fieldKey), previewValue };
+      })
+      .filter((item) => item.message);
+
+    if (items.length === 0) return null;
+
+    return (
+      <div className="mt-3 space-y-1">
+        {items.map(({ fieldKey, message, previewValue }) => (
+          <div key={fieldKey} className="text-xs text-red-600">
+            <strong>{spellFieldLabels[fieldKey] ?? fieldKey}</strong>
+            {previewValue ? ` ("${previewValue}")` : ""}: {message}
+          </div>
+        ))}
+      </div>
+    );
+  };
+  const renderInlineSpellHint = (fieldKey: string) => (
+    <div className="min-h-[1rem] pt-1 text-xs leading-tight text-red-500">
+      {spellingWarnings[fieldKey]?.length ? "Posible error ortográfico." : ""}
+    </div>
+  );
+  const renderVisibleInlineSpellHint = (fieldKey: string) => {
+    const value = String(methods.getValues(fieldKey) ?? "").trim();
+    const hasWarning = Boolean(value) && Boolean(spellingWarnings[fieldKey]?.length);
+
+    return hasWarning ? renderInlineSpellHint(fieldKey) : null;
+  };
+  const applySpellSuggestion = (
+    _fieldKey: string,
+    _replacement: string,
+    _currentValue: string,
+    _onChange: (value: string) => void
+  ) => undefined;
+  void applySpellSuggestion;
+  const renderSpellSuggestionPopover = (
+    fieldKey: string,
+    currentValue: string,
+    onChange: (value: string) => void
+  ) => {
+    const warning = spellingWarnings[fieldKey]?.[0];
+    const suggestions = Array.from(
+      new Set(
+        (warning?.replacements ?? [])
+          .map((replacement) => replacement.value.trim())
+          .filter((replacement) => replacement.length >= 2)
+          .filter((replacement) => /^[a-záéíóúüñ][a-záéíóúüñ]+$/i.test(replacement))
+          .filter((replacement) => {
+            const current = currentValue.trim();
+            if (!current) return true;
+            const isCurrentLower = current === current.toLowerCase();
+            return !isCurrentLower || replacement === replacement.toLowerCase();
+          })
+      )
+    ).slice(0, 3);
+
+    if (!warning || suggestions.length === 0) return null;
+
+    return (
+      <Popover>
+        <PopoverTrigger asChild>
+          <button
+            type="button"
+            className="ml-1 inline text-xs text-red-600 underline underline-offset-2"
+          >
+            Ver sugerencias
+          </button>
+        </PopoverTrigger>
+        <PopoverContent className="w-64 p-3" align="start">
+          <div className="space-y-2">
+            <p className="text-sm font-medium text-slate-900">Sugerencias</p>
+            <p className="text-xs text-slate-600">{warning.message}</p>
+            <div className="flex flex-col gap-2">
+              {suggestions.map((replacement) => (
+                <button
+                  key={`${fieldKey}-${replacement}`}
+                  type="button"
+                  onClick={() => void applySpellSuggestion(fieldKey, replacement, currentValue, onChange)}
+                  className="rounded-md border px-3 py-2 text-left text-sm transition-colors hover:bg-slate-50"
+                >
+                  {replacement}
+                </button>
+              ))}
+            </div>
+          </div>
+        </PopoverContent>
+      </Popover>
+    );
+  };
+  void renderSpellSuggestionPopover;
 
 
   /* ───────────────────────── Persistencia auto a localStorage ───────────────────────── */
 
   useEffect(() => {
     if (!pdfModalOpen || !formData) return
-    fetchPdfInvestigator(formData)
-    console.log("✅ Preview generado, pdfId =", pdfId);
+    void fetchPdfInvestigator(formData)
   }, [pdfModalOpen, formData, fetchPdfInvestigator])
 
 
@@ -103,28 +267,138 @@ export default function CreateCaseScreen() {
     return () => sub.unsubscribe();
   }, [methods]);
 
+  useEffect(() => {
+    if (!pendingScrollTarget) return;
+
+    const frameId = window.requestAnimationFrame(() => {
+      scrollToFieldOrSection(pendingScrollTarget.sectionKey, pendingScrollTarget.fieldKey);
+    });
+    const timeoutId = window.setTimeout(() => {
+      scrollToFieldOrSection(pendingScrollTarget.sectionKey, pendingScrollTarget.fieldKey);
+      if (pendingScrollTarget.fieldKey) {
+        setPendingScrollTarget(null);
+      }
+    }, pendingScrollTarget.fieldKey ? 360 : 220);
+
+    return () => {
+      window.cancelAnimationFrame(frameId);
+      window.clearTimeout(timeoutId);
+    };
+  }, [openSections, pendingScrollTarget]);
+
   const doSpellCheck = async (k: string, txt: string) => {
-    if (!txt.trim()) return;
-    try { onSpellCheck(k, await checkSpellingWithLT(txt)); } catch (e) { console.error(e); }
+    const normalizedText = txt.trim();
+    if (!normalizedText) {
+      clearSpellWarning(k);
+      return;
+    }
+    try { onSpellCheck(k, await checkSpellingWithLT(normalizedText)); } catch (e) { console.error(e); }
   };
-  const handleSpellCheck = (fieldKey: string, matches: LTMatch[]) => {
-    setWarn(prev => ({ ...prev, [fieldKey]: matches }))
-  }
+  const realtimeSpellCheckKeys = [
+    "patrocinador",
+    "compania_seguro",
+    "dir_seguro",
+    "nombre_doctor",
+    "nombre_dir_investigaciones",
+    "cel_correo_dir_investigaciones",
+    "nombre_estudio",
+    "nombre_inv_principal",
+    "nombre_presidente",
+  ] as const;
+  const realtimeSpellSeed = realtimeSpellCheckKeys
+    .map((fieldKey) => String(methods.watch(fieldKey) ?? ""))
+    .join("|");
+  const hasFieldValue = (field: FormField, value: unknown) => {
+    if (field.type === "datePicker") {
+      return Boolean(value);
+    }
+
+    if (typeof value === "number") {
+      return !Number.isNaN(value);
+    }
+
+    return String(value ?? "").trim() !== "";
+  };
+  const getFirstMissingFieldKey = (fields: FormField[]) => {
+    const values = methods.getValues();
+
+    return fields.find((field) =>
+      field.required &&
+      field.type !== "custom" &&
+      !hasFieldValue(field, values[field.key])
+    )?.key;
+  };
 
   /* ─────────── Submit (genera PDF) ────────── */
   const handleSubmit = async () => {
-    /* validar formulario externo */
-    if (!(await methods.trigger())) return;
+    const isMainFormValid = await methods.trigger();
 
-    /* validar cada sección */
-    const refs = [cabeceraRef, introRef, infoRef, authRef];
-    const allOk = await Promise.all(refs.map(r => r.current?.trigger())).then(bools => bools.every(Boolean));
-    if (!allOk) return;
+    const sectionEntries = [
+      { key: "head", title: "Cabecera", ref: cabeceraRef, fields: cabeceraFields },
+      { key: "intro", title: "Introducción", ref: introRef, fields: introduccionFields },
+      { key: "info", title: "Información general", ref: infoRef, fields: informacionGeneralFields },
+      { key: "auth", title: "Autorización", ref: authRef, fields: autorizacionFields },
+    ] as const;
+
+    const sectionResults = await Promise.all(
+      sectionEntries.map(async ({ key, title, ref, fields }) => {
+        const mountedIsValid = ref.current ? await ref.current.trigger() : true;
+        const errors = ((ref.current as any)?.__formInstance?.formState?.errors ?? {}) as Record<string, { message?: string }>;
+        const fallbackMissingFieldKey = getFirstMissingFieldKey(fields);
+
+        const invalidFieldKeys = fields
+          .filter((field) => errors[field.key] && field.type !== "custom")
+          .map((field) => field.key);
+        if (fallbackMissingFieldKey && !invalidFieldKeys.includes(fallbackMissingFieldKey)) {
+          invalidFieldKeys.unshift(fallbackMissingFieldKey);
+        }
+
+        return {
+          key,
+          title,
+          isValid: mountedIsValid && invalidFieldKeys.length === 0,
+          invalidFieldKeys,
+        };
+      })
+    );
+
+    const invalidSections = sectionResults.filter((section) => !section.isValid);
+    if (!isMainFormValid || invalidSections.length > 0) {
+      const firstInvalidSection = invalidSections[0];
+      const firstInvalidFieldKey =
+        firstInvalidSection?.invalidFieldKeys?.[0] ??
+        (firstInvalidSection
+          ? getFirstMissingFieldKey(
+              sectionEntries.find((section) => section.key === firstInvalidSection.key)?.fields ?? []
+            )
+          : undefined);
+
+      setOpen((prev) =>
+        invalidSections.reduce(
+          (acc, section) => ({ ...acc, [section.key]: true }),
+          { ...prev }
+        )
+      );
+
+      window.setTimeout(() => {
+        invalidSections.forEach((section) => {
+          const sectionRef = sectionEntries.find((entry) => entry.key === section.key)?.ref;
+          void sectionRef?.current?.trigger();
+        });
+      }, 260);
+
+      setPendingScrollTarget(
+        firstInvalidSection
+          ? { sectionKey: firstInvalidSection.key, fieldKey: firstInvalidFieldKey }
+          : null
+      );
+      return;
+    }
 
     /* recolectar */
     const data: Record<string, any> = { fecha, ...methods.getValues() };
 
-    for (const r of refs) {
+    for (const r of sectionEntries.map((section) => section.ref)) {
       const inst = (r.current as any)?.__formInstance;
       if (inst) {
         await inst.trigger();
@@ -138,8 +412,8 @@ export default function CreateCaseScreen() {
 
   const handleModalSubmit = async () => {
     if (!formData) return;
-    // Aquí pasamos formData **y** pdfId al hook de creación
-    await createCase(formData, pdfId);
+    const { pdfId: ensuredPdfId } = await fetchPdfInvestigator(formData);
+    await createCase(formData, ensuredPdfId || pdfId);
     // Limpieza
     navigate(`/historial-casos`);
     localStorage.removeItem(LS_KEY);
@@ -150,7 +424,7 @@ export default function CreateCaseScreen() {
   /* ───────────────────────── Campos (formDataConfig) ─────────────────────── */
   const cabeceraFields: FormField[] = [
     { key: "version", type: "number", label: "Versión", placeholder: "Ingresa la versión del FCI", required: true },
-    { key: "codigo", type: "text", label: "Código", placeholder: "Ingresa el código del FCI", required: false },
+    { key: "codigo", type: "text", label: "Código", placeholder: "Ingresa el código del FCI", required: true },
     { key: "fecha", type: "datePicker", label: "Fecha", placeholder: "Ingresa una fecha", required: true },
   ];
 
@@ -379,16 +653,17 @@ export default function CreateCaseScreen() {
             <ShadcnFormField
               name="patrocinador"
               render={({ field }) => (
-                <FormItem className="inline-block">
+                <FormItem className="inline-block align-top" data-field-key="patrocinador">
                   <FormControl>
                     <Input
                       {...field}
                       inputType="text"
                       placeholder="Nombre del patrocinador"
-                      className="inline text-sm px-1 py-[2px] h-6 border rounded-md"
+                      className="inline w-40 text-sm px-1 py-[2px] h-6 border rounded-md"
                       onBlur={(e) => doSpellCheck("patrocinador", e.target.value,)}
                     />
                   </FormControl>
+                  {renderVisibleInlineSpellHint("patrocinador")}
                   <FormMessage className="text-xs text-red-500 ml-1" />
                 </FormItem>
               )}
@@ -400,16 +675,17 @@ export default function CreateCaseScreen() {
             <ShadcnFormField
               name="patrocinador"
               render={({ field }) => (
-                <FormItem className="inline-block">
+                <FormItem className="inline-block align-top" data-field-key="patrocinador">
                   <FormControl>
                     <Input
                       {...field}
                       inputType="text"
                       placeholder="Nombre del patrocinador"
-                      className="inline text-sm px-1 py-[2px] h-6 border rounded-md"
+                      className="inline w-36 text-sm px-1 py-[2px] h-6 border rounded-md"
                       onBlur={(e) => doSpellCheck("patrocinador", e.target.value,)}
                     />
                   </FormControl>
+                  {renderVisibleInlineSpellHint("patrocinador")}
                   <FormMessage className="text-xs text-red-500 ml-1" />
                 </FormItem>
               )}
@@ -418,20 +694,17 @@ export default function CreateCaseScreen() {
             <ShadcnFormField
               name="compania_seguro"
               render={({ field }) => (
-                <FormItem className="inline-block">
+                <FormItem className="inline-block align-top" data-field-key="compania_seguro">
                   <FormControl>
                     <Input
                       {...field}
                       inputType="text"
                       placeholder="Nombre de la compañía"
-                      className="inline text-sm px-1 py-[2px] h-6 border rounded-md"
-                      onBlur={async (e) => {
-                        const texto = (e.target as HTMLInputElement).value;
-                        const matches: LTMatch[] = await checkSpellingWithLT(texto);
-                        handleSpellCheck("compania_seguro", matches);
-                      }}
+                      className="inline w-20 text-sm px-1 py-[2px] h-6 border rounded-md"
+                      onBlur={(e) => void doSpellCheck("compania_seguro", e.target.value)}
                     />
                   </FormControl>
+                  {renderVisibleInlineSpellHint("compania_seguro")}
                   <FormMessage className="text-xs text-red-500 ml-1" />
                 </FormItem>
               )}
@@ -440,15 +713,17 @@ export default function CreateCaseScreen() {
             <ShadcnFormField
               name="dir_seguro"
               render={({ field }) => (
-                <FormItem className="inline-block">
+                <FormItem className="inline-block align-top" data-field-key="dir_seguro">
                   <FormControl>
                     <Input
                       {...field}
                       inputType="text"
                       placeholder="Dirección"
                       className="inline text-sm px-1 py-[2px] h-6 border rounded-md"
+                      onBlur={(e) => void doSpellCheck("dir_seguro", e.target.value)}
                     />
                   </FormControl>
+                  {renderVisibleInlineSpellHint("dir_seguro")}
                   <FormMessage className="text-xs text-red-500 ml-1" />
                 </FormItem>
               )}
@@ -471,7 +746,7 @@ export default function CreateCaseScreen() {
                           shouldValidate: false,
                         })
                       }}
-                      className="inline text-sm px-1 py-[2px] h-6 border rounded-md"
+                      className="inline w-44 text-sm px-1 py-[2px] h-6 border rounded-md"
                     >
                       <option value=""></option>
                       <option value="Masculino">el</option>
@@ -486,20 +761,17 @@ export default function CreateCaseScreen() {
             <ShadcnFormField
               name="nombre_doctor"
               render={({ field }) => (
-                <FormItem className="inline-block">
+                <FormItem className="inline-block align-top" data-field-key="nombre_doctor">
                   <FormControl>
                     <Input
                       {...field}
                       inputType="text"
                       placeholder="Nombre del investigador"
-                      className="inline text-sm px-1 py-[2px] h-6 border rounded-md"
-                      onBlur={async (e) => {
-                        const texto = (e.target as HTMLInputElement).value;
-                        const matches: LTMatch[] = await checkSpellingWithLT(texto);
-                        handleSpellCheck("nombre_doctor", matches);
-                      }}
+                      className="inline w-40 text-sm px-1 py-[2px] h-6 border rounded-md"
+                      onBlur={(e) => void doSpellCheck("nombre_doctor", e.target.value)}
                     />
                   </FormControl>
+                  {renderVisibleInlineSpellHint("nombre_doctor")}
                   <FormMessage className="text-xs text-red-500 ml-1" />
                 </FormItem>
               )}
@@ -514,6 +786,7 @@ export default function CreateCaseScreen() {
                     inputType="number"
                     placeholder="Celular del investigador"
                     className="inline text-sm px-1 py-[2px] h-6 border rounded-md"
+                    onBlur={(e) => void doSpellCheck("cel_correo_dir_investigaciones", e.target.value)}
                   />
                 </FormControl>
                 <FormMessage className="text-xs text-red-500 ml-1" />
@@ -522,26 +795,23 @@ export default function CreateCaseScreen() {
             . A fin de activar la póliza la investigadora contactará a la Directora de la Oficina de Investigaciones del Hospital Universitario San Ignacio,
             <ShadcnFormField
               name="nombre_dir_investigaciones"
-              render={({ field }) => (<FormItem className="inline-block">
+              render={({ field }) => (<FormItem className="inline-block align-top" data-field-key="nombre_dir_investigaciones">
                 <FormControl>
                   <Input
                     {...field}
                     inputType="text"
                     placeholder="Director/a Of. Investigaciones"
                     className="inline text-sm px-1 py-[2px] h-6 border rounded-md"
-                    onBlur={async (e) => {
-                      const texto = (e.target as HTMLInputElement).value;
-                      const matches: LTMatch[] = await checkSpellingWithLT(texto);
-                      handleSpellCheck("nombre_dir_investigaciones", matches);
-                    }}
+                    onBlur={(e) => void doSpellCheck("nombre_dir_investigaciones", e.target.value)}
                   />
                 </FormControl>
+                {renderVisibleInlineSpellHint("nombre_dir_investigaciones")}
                 <FormMessage className="text-xs text-red-500 ml-1" />
               </FormItem>)}
             />{" "}
             <ShadcnFormField
               name="cel_correo_dir_investigaciones"
-              render={({ field }) => (<FormItem className="inline-block">
+              render={({ field }) => (<FormItem className="inline-block align-top" data-field-key="cel_correo_dir_investigaciones">
                 <FormControl>
                   <Input
                     {...field}
@@ -550,6 +820,7 @@ export default function CreateCaseScreen() {
                     className="inline text-sm px-1 py-[2px] h-6 border rounded-md"
                   />
                 </FormControl>
+                {renderVisibleInlineSpellHint("cel_correo_dir_investigaciones")}
                 <FormMessage className="text-xs text-red-500 ml-1" />
               </FormItem>)}
             />.
@@ -558,12 +829,20 @@ export default function CreateCaseScreen() {
           <p>
             Al firmar este formulario usted no renuncia a ningún derecho legal, aceptar atención médica o aceptar el pago de lo el/la s gastos médicos.
           </p>
+          {renderSpellBlockSummary([
+            "patrocinador",
+            "compania_seguro",
+            "dir_seguro",
+            "nombre_doctor",
+            "nombre_dir_investigaciones",
+            "cel_correo_dir_investigaciones",
+          ])}
         </div>
       ),
     } as FormField);
 
     return fields;
-  }, [mostrarAsentimiento, mostrarPoliza, genero]);
+  }, [mostrarAsentimiento, mostrarPoliza, genero, spellingWarnings]);
 
   const autorizacionFields: FormField[] = [
     { key: "nombre_estudio", type: "text", required: true, hidden: true },
@@ -591,26 +870,23 @@ export default function CreateCaseScreen() {
             <ShadcnFormField
               name="nombre_estudio"
               render={({ field }) => (
-                <FormItem className="inline-block">
+                <FormItem className="inline-block align-top" data-field-key="nombre_estudio">
                   <FormControl>
                     <Input
                       {...field}
                       inputType="text"
                       placeholder="Nombre del estudio"
-                      className="inline text-sm px-1 py-[2px] h-6 border rounded-md"
-                      onBlur={async (e) => {
-                        const texto = (e.target as HTMLInputElement).value;
-                        const matches: LTMatch[] = await checkSpellingWithLT(texto);
-                        handleSpellCheck("nombre_estudio", matches);
-                      }}
+                      className="inline w-36 text-sm px-1 py-[2px] h-6 border rounded-md"
+                      onBlur={(e) => void doSpellCheck("nombre_estudio", e.target.value)}
                     />
                   </FormControl>
+                  {renderVisibleInlineSpellHint("nombre_estudio")}
                   <FormMessage className="text-xs text-red-500 ml-1" />
                 </FormItem>
               )}
             />.
           </div>
-          <div className="pt-4">
+          <div className="pt-4 text-[0.95rem] leading-[1.8]">
             Si usted tiene dudas acerca de su participación en este estudio puede comunicarse con el investigador principal:
             <ShadcnFormField
               name="genero_inv_principal"
@@ -619,7 +895,7 @@ export default function CreateCaseScreen() {
                   <FormControl>
                     <select
                       {...field}
-                      className="inline text-sm px-1 py-[2px] h-6 border rounded-md"
+                      className="inline w-20 text-sm px-1 py-[2px] h-6 border rounded-md"
                     >
                       <option value=""></option>
                       <option value="Masculino">Dr.</option>
@@ -633,20 +909,17 @@ export default function CreateCaseScreen() {
             <ShadcnFormField
               name="nombre_inv_principal"
               render={({ field }) => (
-                <FormItem className="inline-block">
+                <FormItem className="inline-block align-top" data-field-key="nombre_inv_principal">
                   <FormControl>
                     <Input
                       {...field}
                       inputType="text"
                       placeholder="Nombre"
-                      className="inline text-sm px-1 py-[2px] h-6 border rounded-md"
-                      onBlur={async (e) => {
-                        const texto = (e.target as HTMLInputElement).value;
-                        const matches: LTMatch[] = await checkSpellingWithLT(texto);
-                        handleSpellCheck("nombre_inv_principal", matches);
-                      }}
+                      className="inline w-44 text-sm px-1 py-[2px] h-6 border rounded-md"
+                      onBlur={(e) => void doSpellCheck("nombre_inv_principal", e.target.value)}
                     />
                   </FormControl>
+                  {renderVisibleInlineSpellHint("nombre_inv_principal")}
                   <FormMessage className="text-xs text-red-500 ml-1" />
                 </FormItem>
               )}
@@ -705,25 +978,27 @@ export default function CreateCaseScreen() {
             <ShadcnFormField
               name="nombre_presidente"
               render={({ field }) => (
-                <FormItem className="inline-block">
+                <FormItem className="inline-block align-top" data-field-key="nombre_presidente">
                   <FormControl>
                     <Input
                       {...field}
                       inputType="text"
                       placeholder="Nombre presidente"
                       className="inline text-sm px-1 py-[2px] h-6 border rounded-md"
-                      onBlur={async (e) => {
-                        const texto = (e.target as HTMLInputElement).value;
-                        const matches: LTMatch[] = await checkSpellingWithLT(texto);
-                        handleSpellCheck("nombre_presidente", matches);
-                      }}
+                      onBlur={(e) => void doSpellCheck("nombre_presidente", e.target.value)}
                     />
                   </FormControl>
+                  {renderVisibleInlineSpellHint("nombre_presidente")}
                   <FormMessage className="text-xs text-red-500 ml-1" />
                 </FormItem>
               )}
             />, Calle 42 No. 4–49, oficina 507. Teléfono 5946161 ext. 2470.
           </div>
+          {renderSpellBlockSummary([
+            "nombre_estudio",
+            "nombre_inv_principal",
+            "nombre_presidente",
+          ])}
         </div>
       ),
     },
@@ -750,6 +1025,86 @@ export default function CreateCaseScreen() {
     () => pick(methods.getValues(), autorizacionFields.map(f => f.key)),
     [methods, autorizacionFields.map(f => watch(f.key)).join("|")]
   );
+
+  useEffect(() => {
+    if (!pendingScrollTarget || pendingScrollTarget.fieldKey) return;
+
+    const sectionMeta = {
+      head: { ref: cabeceraRef, fields: cabeceraFields },
+      intro: { ref: introRef, fields: introduccionFields },
+      info: { ref: infoRef, fields: informacionGeneralFields },
+      auth: { ref: authRef, fields: autorizacionFields },
+    } as const;
+
+    const currentSection = sectionMeta[pendingScrollTarget.sectionKey as keyof typeof sectionMeta];
+    if (!currentSection) return;
+
+    const timeoutIds = [160, 420, 760].map((delay) =>
+      window.setTimeout(async () => {
+        await currentSection.ref.current?.trigger();
+        const errors = (((currentSection.ref.current as any)?.__formInstance?.formState?.errors) ?? {}) as Record<string, { message?: string }>;
+        const firstInvalidFieldKey = currentSection.fields
+          .filter((field) => errors[field.key] && field.type !== "custom")
+          .map((field) => field.key)[0];
+
+        if (!firstInvalidFieldKey) return;
+
+        setPendingScrollTarget((prev) =>
+          prev && prev.sectionKey === pendingScrollTarget.sectionKey && !prev.fieldKey
+            ? { sectionKey: prev.sectionKey, fieldKey: firstInvalidFieldKey }
+            : prev
+        );
+      }, delay)
+    );
+
+    return () => timeoutIds.forEach((timeoutId) => window.clearTimeout(timeoutId));
+  }, [pendingScrollTarget, openSections, cabeceraFields, introduccionFields, informacionGeneralFields, autorizacionFields]);
+
+  const initialSpellCheckDoneRef = useRef(false);
+  const realtimeSpellCheckReadyRef = useRef(false);
+
+  useEffect(() => {
+    if (initialSpellCheckDoneRef.current) return;
+    initialSpellCheckDoneRef.current = true;
+
+    const spellCheckKeys = [
+      ...cabeceraFields,
+      ...introduccionFields,
+      ...informacionGeneralFields,
+      ...autorizacionFields,
+    ]
+      .filter((field) =>
+        field.type !== "custom" &&
+        field.type !== "select" &&
+        field.type !== "datePicker" &&
+        field.type !== "number"
+      )
+      .map((field) => field.key);
+
+    const values = methods.getValues();
+
+    spellCheckKeys.forEach((fieldKey) => {
+      const value = String(values[fieldKey] ?? "").trim();
+      if (!value) return;
+      void doSpellCheck(fieldKey, value);
+    });
+  }, [methods, cabeceraFields, introduccionFields, informacionGeneralFields, autorizacionFields]);
+
+  useEffect(() => {
+    if (!realtimeSpellCheckReadyRef.current) {
+      realtimeSpellCheckReadyRef.current = true;
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      realtimeSpellCheckKeys.forEach((fieldKey) => {
+        const value = String(methods.getValues(fieldKey) ?? "");
+        void doSpellCheck(fieldKey, value);
+      });
+    }, 450);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [methods, realtimeSpellSeed]);
 
 
   const sections: SectionConfig[] = [
@@ -806,9 +1161,6 @@ export default function CreateCaseScreen() {
     <ModalForm
       open={pdfModalOpen}
       onOpenChange={(open) => {
-        if (!open) {
-          clearPdf();
-        }
         setPdfModalOpen(open);
       }}
       title={{ text: "Visualizador PDF consentimiento informado", align: "left" }}
@@ -848,7 +1200,7 @@ export default function CreateCaseScreen() {
         sections={sections}
         onFormSubmit={handleSubmit}
         modalForm={modalForm}
-        spellingWarnings={spellingWarningsEl}
+        spellingWarnings={spellingWarningsEl && undefined}
       />
     </FormProvider>
   );

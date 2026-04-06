@@ -1,10 +1,10 @@
-import { IEvaluacionRepository } from '../../../domain';
-import { EvaluacionResponseDto } from '../..';
+import type { Evaluation } from '../../../domain/entities/evaluation.entity';
+import type { IEvaluationRepository } from '../../../domain/repositories/evaluation.repository';
 
-export class GetAllEvaluacionsUseCase {
-  constructor(private readonly evaluacionRepository: IEvaluacionRepository) {}
+export class GetAllEvaluationsUseCase {
+  constructor(private readonly evaluationRepository: IEvaluationRepository) {}
 
-  public async execute(): Promise<EvaluacionResponseDto[]> {
-    return this.evaluacionRepository.findAll();
+  public async execute(): Promise<Evaluation[]> {
+    return this.evaluationRepository.findAll();
   }
 }

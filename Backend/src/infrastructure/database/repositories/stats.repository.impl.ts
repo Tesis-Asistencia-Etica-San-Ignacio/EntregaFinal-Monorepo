@@ -1,10 +1,10 @@
 import { EvaluationModel } from '../models/evaluation.model'
 import { IStatsRepository } from '../../../domain/repositories/stats.repository'
-import { EvaluationStatsDto } from '../../../application'
+import type { EvaluationStats } from '../../../domain/entities/evaluationStats.entity'
 import { differenceInCalendarDays, subMonths } from 'date-fns'
 
 export class StatsRepositoryImpl implements IStatsRepository {
-    async aggregateEvaluationStats(from: Date, to: Date): Promise<EvaluationStatsDto> {
+    async aggregateEvaluationStats(from: Date, to: Date): Promise<EvaluationStats> {
         // Ajustamos 'from' a la medianoche UTC de ese día,
         // y 'to' a la medianoche UTC del día SIGUIENTE
         const toUtcMidnight = (d: Date) =>

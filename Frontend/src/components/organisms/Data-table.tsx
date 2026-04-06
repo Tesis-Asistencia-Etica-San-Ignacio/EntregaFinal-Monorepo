@@ -2,6 +2,8 @@ import * as React from "react"
 import {
   ColumnDef,
   ColumnFiltersState,
+  functionalUpdate,
+  PaginationState,
   SortingState,
   VisibilityState,
   flexRender,
@@ -28,6 +30,7 @@ import {
 import { DataTablePagination } from "../molecules/table/Data-table-pagination"
 import { DataTableToolbar } from "../molecules/table/Data-table-toolbar"
 import { Spinner } from "../atoms/spinner"
+import type { PaginationTableState } from "@/types/paginationType"
 
 const STORAGE_KEY = "table_column_visibility"
 
@@ -50,6 +53,7 @@ interface DataTableProps<TData, TValue> {
   loading?: boolean
   /** Si quieres algo distinto al spinner por defecto. */
   loadingContent?: React.ReactNode
+  paginationTableState?: PaginationTableState
 }
 
 export function DataTable<TData, TValue>({
@@ -60,12 +64,67 @@ export function DataTable<TData, TValue>({
   onRowClick,
   loading = false,
   loadingContent,
+  paginationTableState,
 }: DataTableProps<TData, TValue>) {
   // 1) Estados internos para la tabla.
   const [rowSelection, setRowSelection] = React.useState({})
-  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([])
-  const [sorting, setSorting] = React.useState<SortingState>([])
-  const [globalFilter, setGlobalFilter] = React.useState("")
+  const [clientColumnFilters, setClientColumnFilters] = React.useState<ColumnFiltersState>([])
+  const [clientSorting, setClientSorting] = React.useState<SortingState>([])
+  const [clientGlobalFilter, setClientGlobalFilter] = React.useState("")
+  const [clientPagination, setClientPagination] = React.useState<PaginationState>({
+    pageIndex: 0,
+    pageSize: 10,
+  })
+  const columnFilters = paginationTableState?.columnFilters ?? clientColumnFilters
+  const sorting = paginationTableState?.sorting ?? clientSorting
+  const globalFilter = paginationTableState?.search ?? clientGlobalFilter
+  const pagination = React.useMemo<PaginationState>(
+    () => ({
+      pageIndex: paginationTableState ? paginationTableState.page - 1 : clientPagination.pageIndex,
+      pageSize: paginationTableState ? paginationTableState.pageSize : clientPagination.pageSize,
+    }),
+    [clientPagination.pageIndex, clientPagination.pageSize, paginationTableState]
+  )
+
+  const handleColumnFiltersChange = React.useCallback(
+    (updater: React.SetStateAction<ColumnFiltersState>) => {
+      if (paginationTableState?.onColumnFiltersChange) {
+        const nextValue = functionalUpdate(updater, columnFilters)
+        paginationTableState.onColumnFiltersChange(nextValue)
+        return
+      }
+
+      setClientColumnFilters(updater)
+    },
+    [columnFilters, paginationTableState]
+  )
+
+  const handleSortingChange = React.useCallback(
+    (updater: React.SetStateAction<SortingState>) => {
+      if (paginationTableState?.onSortingChange) {
+        const nextValue = functionalUpdate(updater, sorting)
+        paginationTableState.onSortingChange(nextValue)
+        return
+      }
+
+      setClientSorting(updater)
+    },
+    [paginationTableState, sorting]
+  )
+
+  const handleGlobalFilterChange = React.useCallback(
+    (updater: React.SetStateAction<string>) => {
+      const nextValue = typeof updater === "function" ? updater(globalFilter) : updater
+
+      if (paginationTableState?.onSearchChange) {
+        paginationTableState.onSearchChange(nextValue)
+        return
+      }
+
+      setClientGlobalFilter(nextValue)
+    },
+    [globalFilter, paginationTableState]
+  )
 
   // 2) Persistencia de visibilidad
   const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>(() => {
@@ -90,22 +149,31 @@ export function DataTable<TData, TValue>({
       rowSelection,
       columnFilters,
       globalFilter,
+      pagination,
     },
     onRowSelectionChange: setRowSelection,
-    onSortingChange: setSorting,
-    onColumnFiltersChange: setColumnFilters,
+    onSortingChange: handleSortingChange,
+    onColumnFiltersChange: handleColumnFiltersChange,
     onColumnVisibilityChange: setColumnVisibility,
-    onGlobalFilterChange: setGlobalFilter,
+    onGlobalFilterChange: handleGlobalFilterChange,
+    onPaginationChange: paginationTableState ? undefined : setClientPagination,
     getCoreRowModel: getCoreRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-    getSortedRowModel: getSortedRowModel(),
+    getFilteredRowModel: paginationTableState ? undefined : getFilteredRowModel(),
+    getPaginationRowModel: paginationTableState ? undefined : getPaginationRowModel(),
+    getSortedRowModel: paginationTableState ? undefined : getSortedRowModel(),
     getFacetedRowModel: getFacetedRowModel(),
     getFacetedUniqueValues: getFacetedUniqueValues(),
     enableRowSelection: true,
     globalFilterFn: globalFilterFn,
-    meta: tableMeta,
+    meta: {
+      ...(tableMeta ?? {}),
+      facetCounts: paginationTableState?.facetCounts,
+    },
     autoResetPageIndex: false,
+    manualPagination: !!paginationTableState,
+    manualFiltering: !!paginationTableState,
+    manualSorting: !!paginationTableState,
+    pageCount: paginationTableState ? paginationTableState.totalPages : undefined,
   })
 
   // 4) Verificar si existe la columna "select".
@@ -179,7 +247,7 @@ export function DataTable<TData, TValue>({
         </Table>
       </div>
       {/* paginación */}
-      <DataTablePagination table={table} />
+      <DataTablePagination table={table} paginationTableState={paginationTableState} />
     </div>
   )
 }

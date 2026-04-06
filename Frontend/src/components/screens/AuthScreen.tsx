@@ -1,32 +1,47 @@
 import { useEffect } from "react";
-import { useAuthContext } from "@/context/AuthContext";
 import { useNavigate, useLocation } from "react-router-dom";
+import { useAuthContext } from "@/context/AuthContext";
 import AuthTemplate from "@/components/templates/AuthTemplate";
 import type { FormField } from "@/types/formTypes";
+import type { CreateUserInput } from "@/types";
 import { Slide } from "../molecules/Carousel";
 import bgMedicina from "@/assets/bg-Medicina.jpg";
 import ponti from "@/assets/ponti.jpg";
-
+import { validateEmail } from "@/lib/validation/email";
+import { validateStrongPassword } from "@/lib/validation/password";
 
 const loginFields: FormField[] = [
-  { type: "email", key: "email", placeholder: "Ingresa tu correo institucional", required: true },
-  { type: "password", key: "password", placeholder: "Ingresa tu contraseña", required: true, minLength: 6 },
+  {
+    type: "email",
+    key: "email",
+    placeholder: "Ingresa tu correo institucional",
+    required: true,
+    customValidation: validateEmail,
+  },
+  {
+    type: "password",
+    key: "password",
+    placeholder: "Ingresa tu contraseña",
+    required: true,
+  },
 ];
 
 const registryFields: FormField[] = [
   { type: "user", key: "name", placeholder: "Ingresa tu nombre", required: true },
   { type: "user", key: "last_name", placeholder: "Ingresa tu apellido", required: true },
-  { type: "email", key: "email", placeholder: "Ingresa tu correo institucional", required: true },
   {
-    type: "password", key: "password", placeholder: "Ingresa tu contraseña", required: true,
-    customValidation: (value: string) => {
-      if (!/.{8,}/.test(value)) return "Debe tener al menos 8 caracteres";
-      if (!/[A-Z]/.test(value)) return "Debe incluir al menos una letra mayúscula";
-      if (!/[a-z]/.test(value)) return "Debe incluir al menos una letra minúscula";
-      if (!/[0-9]/.test(value)) return "Debe incluir al menos un número";
-      if (!/[^A-Za-z0-9]/.test(value)) return "Debe incluir al menos un carácter especial";
-      return undefined;
-    },
+    type: "email",
+    key: "email",
+    placeholder: "Ingresa tu correo institucional",
+    required: true,
+    customValidation: validateEmail,
+  },
+  {
+    type: "password",
+    key: "password",
+    placeholder: "Ingresa tu contraseña",
+    required: true,
+    customValidation: validateStrongPassword,
   },
 ];
 
@@ -62,12 +77,7 @@ export default function AuthScreen() {
     await login(credentials.email, credentials.password);
   };
 
-  const handleRegister = async (data: {
-    name: string;
-    last_name: string;
-    email: string;
-    password: string;
-  }) => {
+  const handleRegister = async (data: CreateUserInput) => {
     await createAccount(data);
     await login(data.email, data.password);
   };

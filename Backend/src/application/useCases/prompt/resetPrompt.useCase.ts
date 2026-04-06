@@ -1,5 +1,5 @@
-import { IPromptRepository } from '../../../domain';
-import { seedPromptsForEvaluator } from '../../../application';
+import type { IPromptRepository } from '../../../domain/repositories/prompt.repository';
+import { seedPromptsForEvaluator } from '../../services/promptSeeding.service';
 
 export class ResetPromptsUseCase {
   constructor(private readonly promptRepository: IPromptRepository) { }

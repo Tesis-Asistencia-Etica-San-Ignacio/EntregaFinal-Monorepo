@@ -57,8 +57,8 @@ export default function EvaluationResultTemplate({
           Aquí está una lista de todas las normas éticas evaluadas previamente
         </p>
       </div>
-      <div className="grid grid-cols-3 gap-4 h-full">
-        <div className="col-span-2 relative">
+      <div className="grid grid-cols-1 gap-4 h-full xl:grid-cols-3">
+        <div className="relative xl:col-span-2">
           <DynamicDataTable
             data={data}
             columnsConfig={columnsConfig}

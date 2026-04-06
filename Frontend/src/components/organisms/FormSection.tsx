@@ -1,5 +1,5 @@
 import React from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/atoms/ui/button";
@@ -37,8 +37,9 @@ export const FormSection: React.FC<FormSectionProps> = ({
   return (
     <div
       key={sectionKey}
+      data-section-key={sectionKey}
       className={cn(
-        "group rounded-lg transition-all duration-200 ease-in-out border border-border/50 space-y-4",
+        "group rounded-lg transition-all duration-200 ease-in-out border border-border/50",
         open
           ? "bg-gradient-to-br from-background via-muted/50 to-background"
           : "hover:bg-muted/50"
@@ -76,18 +77,12 @@ export const FormSection: React.FC<FormSectionProps> = ({
         {open && (
           <motion.div
             initial={{ height: 0, opacity: 0 }}
-            animate={{
-              height: "auto",
-              opacity: 1,
-              transition: { duration: 0.2, ease: "easeOut" },
-            }}
-            exit={{
-              height: 0,
-              opacity: 0,
-              transition: { duration: 0.2, ease: "easeIn" },
-            }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2, ease: "easeInOut" }}
+            className="overflow-hidden"
           >
-            <div className="px-6 pb-4 pt-2">
+            <div className="px-6 pt-2 pb-4">
               <DynamicForm
                 key={dynamicFormKey ?? sectionKey}
                 ref={formRef}

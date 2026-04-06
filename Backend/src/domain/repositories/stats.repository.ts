@@ -1,5 +1,5 @@
-import { EvaluationStatsDto } from '../../application/dtos/evaluationStats.dto'
+import type { EvaluationStats } from '../entities/evaluationStats.entity'
 
 export interface IStatsRepository {
-    aggregateEvaluationStats(from: Date, to: Date): Promise<EvaluationStatsDto>
+    aggregateEvaluationStats(from: Date, to: Date): Promise<EvaluationStats>
 }

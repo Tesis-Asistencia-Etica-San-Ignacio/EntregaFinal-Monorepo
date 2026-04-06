@@ -1,5 +1,6 @@
 import { IEthicalNormRepository } from "../../../domain";
-import { UpdateEthicalNormDto, EthicalNormResponseDto } from "../../dtos";
+import type { EthicalNorm, UpdateEthicalNorm } from "../../../domain/entities/ethicalRule.entity";
+import { UpdateEthicalNormDto } from "../../dtos";
 
 export class UpdateEthicalRuleUseCase {
   constructor(private readonly repository: IEthicalNormRepository) {}
@@ -7,8 +8,8 @@ export class UpdateEthicalRuleUseCase {
   public async execute(
     id: string,
     data: UpdateEthicalNormDto
-  ): Promise<EthicalNormResponseDto | null> {
-
-    return this.repository.update(id, data);
+  ): Promise<EthicalNorm | null> {
+    const command: UpdateEthicalNorm = { ...data };
+    return this.repository.update(id, command);
   }
 }

@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express'
-import { GetEvaluationStatsUseCase } from '../../application'
+import { GetEvaluationStatsUseCase } from '../../application/useCases/stats/evaluationStats.UseCase'
 
 export class StatsController {
     constructor(private getStatsUseCase: GetEvaluationStatsUseCase) { }

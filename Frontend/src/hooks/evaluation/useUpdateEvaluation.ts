@@ -15,7 +15,7 @@ const useUpdateEvaluationHook = () => {
 
     onSuccess: () => {
       qc.refetchQueries({
-        queryKey: [QUERY_KEYS.STATS], // coincide con ['stats', from, to]
+        queryKey: QUERY_KEYS.STATS,
         exact: false,               // cualquier rango
         type: 'all',               // 'active' ⇒ solo las montadas
       })

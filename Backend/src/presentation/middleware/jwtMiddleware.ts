@@ -9,7 +9,7 @@ export const validateRoleMiddleware = (roles: string[]) => {
 
     if (!token) {
       console.log("Token no proporcionado");
-      return res.status(403).json({ message: "Token no proporcionado" });
+      return res.status(401).json({ message: "Token no proporcionado" });
     }
 
     try {

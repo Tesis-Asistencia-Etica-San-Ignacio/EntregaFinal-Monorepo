@@ -1,36 +1,28 @@
 import { Router } from "express";
-import { UserController } from "../../presentation";
-import {
-  UserRepository,
-  PromptRepository,
-} from "../../infrastructure/database/repositories";
 import {
   CreateEvaluatorUseCase,
   CreateInvestigatorUseCase,
-  GetAllUsersUseCase,
-  GetUserByIdUseCase,
-  UpdateUserUseCase,
-  DeleteUserUseCase,
-  UpdatePasswordUseCase,
-} from "../../application";
+} from "../../application/useCases/user/createUser.useCase";
+import { DeleteUserUseCase } from "../../application/useCases/user/deleteUser.useCase";
+import { GetAllUsersUseCase } from "../../application/useCases/user/getAllUsers.useCase";
+import { GetUserByIdUseCase } from "../../application/useCases/user/getUserById.useCase";
+import { UpdatePasswordUseCase } from "../../application/useCases/user/updatePassword.useCase";
+import { UpdateUserUseCase } from "../../application/useCases/user/updateUser.useCase";
+import { PromptRepository } from "../../infrastructure/database/repositories/prompt.repository.impl";
+import { UserRepository } from "../../infrastructure/database/repositories/user.repository.impl";
+import { UserController } from "../controllers/user.controller";
 import { validateRoleMiddleware } from "../middleware/jwtMiddleware";
 
 const router = Router();
-
 const userRepository = new UserRepository();
 const promptRepository = new PromptRepository();
-
-const createEvaluatorUseCase = new CreateEvaluatorUseCase(
-  userRepository,
-  promptRepository
-);
+const createEvaluatorUseCase = new CreateEvaluatorUseCase(userRepository, promptRepository);
 const createInvestigatorUseCase = new CreateInvestigatorUseCase(userRepository);
 const getAllUsersUseCase = new GetAllUsersUseCase(userRepository);
 const getUserByIdUseCase = new GetUserByIdUseCase(userRepository);
 const updateUserUseCase = new UpdateUserUseCase(userRepository);
 const deleteUserUseCase = new DeleteUserUseCase(userRepository);
 const updatePasswordUseCase = new UpdatePasswordUseCase(userRepository);
-
 const userController = new UserController(
   createEvaluatorUseCase,
   createInvestigatorUseCase,
@@ -38,7 +30,7 @@ const userController = new UserController(
   getUserByIdUseCase,
   updateUserUseCase,
   deleteUserUseCase,
-  updatePasswordUseCase,
+  updatePasswordUseCase
 );
 
 router.get(

@@ -50,6 +50,7 @@ export default function EvaluationScreen() {
       alreadyTriggered.current = true
       generate(evaluationId)
         .then(() => fetchNorms())
+        .then(() => clear())
         .then(() => {
           // limpiamos el state para que no se vuelva a disparar
           window.history.replaceState({}, "", window.location.pathname)
@@ -61,6 +62,7 @@ export default function EvaluationScreen() {
       alreadyTriggered.current = true
       reEvaluate(evaluationId)
         .then(() => fetchNorms())
+        .then(() => clear())
         .then(() => {
           window.history.replaceState({}, "", window.location.pathname)
         })
@@ -97,6 +99,8 @@ export default function EvaluationScreen() {
       justification: data.justification,
     }
     await updateEthicalNorm(selectedRow.id, params)
+    clear()
+    await fetchNorms()
     setEditModalOpen(false)
   }
 

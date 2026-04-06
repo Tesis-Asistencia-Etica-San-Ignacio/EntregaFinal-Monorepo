@@ -1,10 +1,9 @@
-import { ICaseRepository } from "../../../domain";
-import { CaseResponseDto } from "../..";
+import type { Case, ICaseRepository } from "../../../domain";
 
 
 export class GetAllCasesUseCase {
   constructor(private readonly caseRepository: ICaseRepository) {}
-  public async execute(): Promise<CaseResponseDto[]> {
+  public async execute(): Promise<Case[]> {
     return this.caseRepository.findAll();
   }
 }

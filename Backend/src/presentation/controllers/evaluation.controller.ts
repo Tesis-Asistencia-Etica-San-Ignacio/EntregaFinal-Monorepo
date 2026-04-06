@@ -1,30 +1,27 @@
-import { Request, Response, NextFunction } from 'express';
-import {
-  CreateEvaluacionUseCase,
-  GetAllEvaluacionsUseCase,
-  GetEvaluacionByIdUseCase,
-  UpdateEvaluacionUseCase,
-  DeleteEvaluacionUseCase,
-  GetEvaluacionesByUserUseCase,
-  CreateEvaluacionDto, 
-  UpdateEvaluacionDto
-} from '../../application';
+import { NextFunction, Request, Response } from 'express';
+import { CreateEvaluationDto, CreateEvaluationSchema, UpdateEvaluationDto, UpdateEvaluationSchema } from '../../application/dtos/evaluation.dto';
+import { CreateEvaluationUseCase } from '../../application/useCases/evaluation/createEvaluation.useCase';
+import { DeleteEvaluationUseCase } from '../../application/useCases/evaluation/deleteEvaluation.useCase';
+import { GetAllEvaluationsUseCase } from '../../application/useCases/evaluation/getAllEvaluations.useCase';
+import { GetEvaluationByIdUseCase } from '../../application/useCases/evaluation/getEvaluationsById.useCase';
+import { GetPaginatedEvaluationsByUserUseCase } from '../../application/useCases/evaluation/getPaginatedEvaluationsByUser.useCase';
+import { UpdateEvaluationUseCase } from '../../application/useCases/evaluation/updateEvaluation.useCase';
+import { isValidObjectId, parseTableQuery, validateRequestBody } from '../../shared/utils';
 
-
-export class EvaluacionController {
+export class EvaluationController {
   constructor(
-    private readonly createEvaluacionUseCase: CreateEvaluacionUseCase,
-    private readonly getAllEvaluacionsUseCase: GetAllEvaluacionsUseCase,
-    private readonly getEvaluacionByIdUseCase: GetEvaluacionByIdUseCase,
-    private readonly updateEvaluacionUseCase: UpdateEvaluacionUseCase,
-    private readonly deleteEvaluacionUseCase: DeleteEvaluacionUseCase,
-    private readonly getEvaluacionesByUserUseCase: GetEvaluacionesByUserUseCase,
+    private readonly createEvaluationUseCase: CreateEvaluationUseCase,
+    private readonly getAllEvaluationsUseCase: GetAllEvaluationsUseCase,
+    private readonly getEvaluationByIdUseCase: GetEvaluationByIdUseCase,
+    private readonly updateEvaluationUseCase: UpdateEvaluationUseCase,
+    private readonly deleteEvaluationUseCase: DeleteEvaluationUseCase,
+    private readonly getPaginatedEvaluationsByUserUseCase: GetPaginatedEvaluationsByUserUseCase
   ) {}
 
   public getAll = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const evaluaciones = await this.getAllEvaluacionsUseCase.execute();
-      res.status(200).json(evaluaciones);
+      const evaluations = await this.getAllEvaluationsUseCase.execute();
+      res.status(200).json(evaluations);
     } catch (error) {
       next(error);
     }
@@ -33,12 +30,23 @@ export class EvaluacionController {
   public getById = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { id } = req.params;
-      const evaluacion = await this.getEvaluacionByIdUseCase.execute(id);
-      if (!evaluacion) {
-        res.status(404).json({ message: 'Evaluacion not found' });
-      } else {
-        res.status(200).json(evaluacion);
+      const userId = req.user?.id;
+      if (!isValidObjectId(id)) {
+        res.status(400).json({ message: 'Invalid evaluation id' });
+        return;
       }
+      if (!userId || !isValidObjectId(userId)) {
+        res.status(401).json({ message: 'Usuario no autenticado' });
+        return;
+      }
+
+      const evaluation = await this.getEvaluationByIdUseCase.execute(id);
+      if (!evaluation || evaluation.uid !== userId) {
+        res.status(404).json({ message: 'Evaluation not found' });
+        return;
+      }
+
+      res.status(200).json(evaluation);
     } catch (error) {
       next(error);
     }
@@ -46,8 +54,25 @@ export class EvaluacionController {
 
   public create = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const newEvaluacion = await this.createEvaluacionUseCase.execute(req.body as CreateEvaluacionDto);
-      res.status(201).json(newEvaluacion);
+      const validation = validateRequestBody(CreateEvaluationSchema, req.body);
+      if (!validation.success) {
+        res.status(400).json({ message: validation.message });
+        return;
+      }
+
+      const dto: CreateEvaluationDto = {
+        uid: req.user?.id && isValidObjectId(req.user.id) ? req.user.id : validation.data.uid,
+        id_fundanet: validation.data.id_fundanet,
+        file: validation.data.file,
+        estado: validation.data.estado,
+        tipo_error: validation.data.tipo_error,
+        aprobado: validation.data.aprobado,
+        correo_estudiante: validation.data.correo_estudiante,
+        version: validation.data.version,
+      };
+
+      const newEvaluation = await this.createEvaluationUseCase.execute(dto);
+      res.status(201).json(newEvaluation);
     } catch (error) {
       next(error);
     }
@@ -56,12 +81,44 @@ export class EvaluacionController {
   public update = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { id } = req.params;
-      const updatedEvaluacion = await this.updateEvaluacionUseCase.execute(id, req.body as UpdateEvaluacionDto);
-      if (!updatedEvaluacion) {
-        res.status(404).json({ message: 'Evaluacion not found' });
-      } else {
-        res.status(200).json(updatedEvaluacion);
+      const userId = req.user?.id;
+      if (!isValidObjectId(id)) {
+        res.status(400).json({ message: 'Invalid evaluation id' });
+        return;
       }
+      if (!userId || !isValidObjectId(userId)) {
+        res.status(401).json({ message: 'Usuario no autenticado' });
+        return;
+      }
+
+      const validation = validateRequestBody(UpdateEvaluationSchema, req.body);
+      if (!validation.success) {
+        res.status(400).json({ message: validation.message });
+        return;
+      }
+
+      const safeData: UpdateEvaluationDto = {
+        ...(validation.data.id_fundanet !== undefined && { id_fundanet: validation.data.id_fundanet }),
+        ...(validation.data.estado !== undefined && { estado: validation.data.estado }),
+        ...(validation.data.tipo_error !== undefined && { tipo_error: validation.data.tipo_error }),
+        ...(validation.data.aprobado !== undefined && { aprobado: validation.data.aprobado }),
+        ...(validation.data.correo_estudiante !== undefined && { correo_estudiante: validation.data.correo_estudiante }),
+        ...(validation.data.version !== undefined && { version: validation.data.version }),
+      };
+
+      const existingEvaluation = await this.getEvaluationByIdUseCase.execute(id);
+      if (!existingEvaluation || existingEvaluation.uid !== userId) {
+        res.status(404).json({ message: 'Evaluation not found' });
+        return;
+      }
+
+      const updatedEvaluation = await this.updateEvaluationUseCase.execute(id, safeData);
+      if (!updatedEvaluation) {
+        res.status(404).json({ message: 'Evaluation not found' });
+        return;
+      }
+
+      res.status(200).json(updatedEvaluation);
     } catch (error) {
       next(error);
     }
@@ -70,12 +127,29 @@ export class EvaluacionController {
   public delete = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { id } = req.params;
-      const wasDeleted = await this.deleteEvaluacionUseCase.execute(id);
-      if (!wasDeleted) {
-        res.status(404).json({ message: 'Evaluacion not found' });
-      } else {
-        res.status(200).json({ message: 'Evaluacion deleted successfully' });
+      const userId = req.user?.id;
+      if (!isValidObjectId(id)) {
+        res.status(400).json({ message: 'Invalid evaluation id' });
+        return;
       }
+      if (!userId || !isValidObjectId(userId)) {
+        res.status(401).json({ message: 'Usuario no autenticado' });
+        return;
+      }
+
+      const existingEvaluation = await this.getEvaluationByIdUseCase.execute(id);
+      if (!existingEvaluation || existingEvaluation.uid !== userId) {
+        res.status(404).json({ message: 'Evaluation not found' });
+        return;
+      }
+
+      const wasDeleted = await this.deleteEvaluationUseCase.execute(id);
+      if (!wasDeleted) {
+        res.status(404).json({ message: 'Evaluation not found' });
+        return;
+      }
+
+      res.status(200).json({ message: 'Evaluation deleted successfully' });
     } catch (error) {
       next(error);
     }
@@ -83,16 +157,15 @@ export class EvaluacionController {
 
   public getByUser = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      // Suponemos que el middleware JWT ha agregado el payload a req.user
       const userId = req.user?.id;
-      console.log('User ID desde el middleware:', userId); // Para depuración
-
-      if (!userId) {
+      if (!userId || !isValidObjectId(userId)) {
         res.status(401).json({ message: 'Usuario no autenticado' });
         return;
       }
-      const evaluaciones = await this.getEvaluacionesByUserUseCase.execute(userId);
-      res.status(200).json(evaluaciones);
+
+      const query = parseTableQuery(req.query as Record<string, unknown>, { defaultSortBy: 'createdAt' });
+      const result = await this.getPaginatedEvaluationsByUserUseCase.execute(userId, query);
+      res.status(200).json(result);
     } catch (error) {
       next(error);
     }

@@ -5,3 +5,5 @@ export * from './getAllCases.useCase';
 export * from './getCaseById.useCase';
 export * from './updateCase.useCase';
 export * from './getCasesByUserId.useCase';
+export * from './getPaginatedCasesByUserId.useCase';
+export * from './createCaseFromPreview.useCase';

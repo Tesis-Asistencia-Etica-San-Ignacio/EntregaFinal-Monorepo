@@ -1,14 +1,12 @@
 import { Router } from 'express'
+import { GetEvaluationStatsUseCase } from '../../application/useCases/stats/evaluationStats.UseCase'
+import { StatsRepositoryImpl } from '../../infrastructure/database/repositories/stats.repository.impl'
 import { StatsController } from '../controllers/stats.controller'
 import { validateRoleMiddleware } from '../middleware/jwtMiddleware'
 
-import { StatsRepositoryImpl } from '../../infrastructure/database/repositories/stats.repository.impl'
-import { GetEvaluationStatsUseCase } from '../../application'
-
 const statsRepository = new StatsRepositoryImpl()
-const getStatsUseCase = new GetEvaluationStatsUseCase(statsRepository)
-const statsController = new StatsController(getStatsUseCase)
-
+const getEvaluationStatsUseCase = new GetEvaluationStatsUseCase(statsRepository)
+const statsController = new StatsController(getEvaluationStatsUseCase)
 const router = Router()
 
 router.get(

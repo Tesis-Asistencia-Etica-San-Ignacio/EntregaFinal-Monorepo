@@ -1,10 +1,10 @@
-import { IUserRepository } from '../../../domain';
-import { UserResponseDto } from '../../../application';
+import type { IUserRepository } from '../../../domain/repositories/user.repository';
+import type { User } from '../../../domain/entities/user.entity';
 
 export class GetUserByIdUseCase {
   constructor(private readonly userRepository: IUserRepository) {}
 
-  public async execute(id: string): Promise<UserResponseDto | null> {
+  public async execute(id: string): Promise<User | null> {
     return this.userRepository.findById(id);
   }
 }

@@ -1,4 +1,4 @@
-import { SmtpService } from '../../services/smpt.service';
+import { SmtpService } from '../../../infrastructure/services/smtp.service';
 
 interface Attachment {
     filename: string;

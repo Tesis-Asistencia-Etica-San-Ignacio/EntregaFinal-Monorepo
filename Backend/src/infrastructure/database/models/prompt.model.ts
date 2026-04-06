@@ -24,4 +24,4 @@ const promptSchema = new Schema<PromptDocument>(
   }
 );
 
-export const promptModel = model<PromptDocument>('prompts', promptSchema);
+export const PromptModel = model<PromptDocument>('prompts', promptSchema);
