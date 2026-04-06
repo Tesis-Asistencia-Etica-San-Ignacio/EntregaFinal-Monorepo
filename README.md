@@ -21,7 +21,6 @@ The platform allows committee members to upload protocols, receive AI-generated 
 
 - **URL**: https://github.com/Tesis-Asistencia-Etica-San-Ignacio/EntregaFinal.git
 - **Latest release tag**: `v1.1.0`
-- **Thesis base release**: `v1.0.0`
 - **License**: MIT
 
 ---
@@ -33,7 +32,7 @@ Make sure you have **Docker Desktop** installed and running, then execute the fo
 ```bash
 git clone https://github.com/Tesis-Asistencia-Etica-San-Ignacio/EntregaFinal.git
 cd EntregaFinal
-git checkout v1.0.0
+git checkout v1.1.0
 docker-compose up --build
 ```
 
@@ -116,7 +115,7 @@ La plataforma permite a los miembros del comité cargar protocolos, recibir obse
 ### Repositorio
 
 - **URL**: https://github.com/Tesis-Asistencia-Etica-San-Ignacio/EntregaFinal.git
-- **Tag de versión**: `v1.0.0`
+- **Tag de versión**: `v1.1.0`
 - **Licencia**: MIT
 
 ---
@@ -128,7 +127,7 @@ Asegúrese de tener **Docker Desktop** instalado y en ejecución, luego ejecute 
 ```bash
 git clone https://github.com/Tesis-Asistencia-Etica-San-Ignacio/EntregaFinal.git
 cd EntregaFinal
-git checkout v1.0.0
+git checkout v1.1.0
 docker-compose up --build
 ```
 
