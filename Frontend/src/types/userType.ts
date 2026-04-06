@@ -1,21 +1,26 @@
 export interface User {
+  id: string;
   name: string;
   last_name: string;
   email: string;
   type: string;
-  password: string;
-  avatar: string;
   modelo?: string;
   provider?: string;
-  //quitar
-  _id: string;
+  createdAt?: string;
+  updatedAt?: string;
+  avatar?: string;
 }
 
-// Crea un usuario sin incluir el campo id
-export type CreateUserInput = Omit<User, 'id'>;
+export interface CreateUserInput {
+  name: string;
+  last_name: string;
+  email: string;
+  password: string;
+  type?: string;
+  modelo?: string;
+  provider?: string;
+}
 
-// Actualiza un usuario sin el campo id
-// types/user.ts
 export interface UpdateUserInput {
   name?: string;
   last_name?: string;
@@ -26,4 +31,5 @@ export interface UpdateUserInput {
 
 export interface UpdatePasswordInput {
   password: string;
+  newPassword: string;
 }

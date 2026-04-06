@@ -2,12 +2,12 @@ import { useMutation } from '@tanstack/react-query';
 import { updatePassword } from '@/services/userService';
 import { DEFAULT_QUERY_OPTIONS } from '@/lib/api/constants';
 import { useNotify } from '@/hooks/useNotify';
-import type { UpdatePasswordInput, User } from '@/types/userType';
+import type { UpdatePasswordInput } from '@/types/userType';
 
 export function useUpdatePassword() {
   const { notifySuccess, notifyError } = useNotify();
 
-  const mutation = useMutation<User, Error, UpdatePasswordInput>({
+  const mutation = useMutation<{ message: string }, Error, UpdatePasswordInput>({
     mutationFn: updatePassword,
     ...DEFAULT_QUERY_OPTIONS,
     onSuccess: () => {

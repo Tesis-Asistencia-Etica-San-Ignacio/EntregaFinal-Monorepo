@@ -1,4 +1,5 @@
-import { ICaseRepository, Case } from "../../../domain";
+import type { Case, ICaseRepository } from "../../../domain";
+import type { UpdateCase } from "../../../domain/entities/case.entity";
 import { UpdateCaseDto } from "../..";
 
 export class UpdateCaseUseCase {
@@ -8,15 +9,12 @@ export class UpdateCaseUseCase {
     id: string,
     data: UpdateCaseDto,
   ): Promise<Case | null> {
-    const caso = await this.caseRepository.update(id, data);
-    if (caso) {
-      return {
-        ...caso,
-        createdAt: new Date(caso.createdAt),
-        updatedAt: new Date(caso.updatedAt),
-        fecha: new Date(caso.fecha),
-      }
-    }
-    return null;
+    const { fecha, ...rest } = data;
+    const command: UpdateCase = {
+      ...rest,
+      ...(fecha ? { fecha: new Date(fecha) } : {}),
+    };
+
+    return this.caseRepository.update(id, command);
   }
 }

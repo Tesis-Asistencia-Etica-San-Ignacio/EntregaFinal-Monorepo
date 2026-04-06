@@ -1,22 +1,19 @@
-import {
-  Evaluacion,
-  IEvaluacionRepository,
-  IEthicalNormRepository,
-} from "../../../domain";
-import { CreateEvaluacionDto } from "../..";
+import { CreateEvaluationDto } from '../../dtos/evaluation.dto';
+import type { CreateEvaluation, Evaluation } from '../../../domain/entities/evaluation.entity';
+import type { IEvaluationRepository } from '../../../domain/repositories/evaluation.repository';
 
-export class CreateEvaluacionUseCase {
+export class CreateEvaluationUseCase {
   constructor(
-    private readonly evaluacionRepository: IEvaluacionRepository,
+    private readonly evaluationRepository: IEvaluationRepository,
   ) { }
 
-  public async execute(data: CreateEvaluacionDto): Promise<Evaluacion> {
-    const evaluacion = await this.evaluacionRepository.create(data);
-    return {
-      ...evaluacion,
-      createdAt: new Date(evaluacion.createdAt),
-      updatedAt: new Date(evaluacion.updatedAt),
+  public async execute(data: CreateEvaluationDto): Promise<Evaluation> {
+    const command: CreateEvaluation = {
+      ...data,
+      version: data.version ?? 1,
     };
+
+    return this.evaluationRepository.create(command);
   }
 }
 

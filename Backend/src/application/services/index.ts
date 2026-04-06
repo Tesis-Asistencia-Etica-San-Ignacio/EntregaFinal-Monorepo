@@ -1,7 +1,3 @@
-//Servicios específicos (por ejemplo, notificaciones, hashing)
-export * from './file.service';
+// Servicios especificos (por ejemplo, notificaciones, hashing)
 export * from './auth.service'
-export * from './pdf.service'
 export * from './promptSeeding.service'
-export * from './gemini.service'
-export * from './groq.service'

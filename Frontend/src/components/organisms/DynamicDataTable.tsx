@@ -6,6 +6,7 @@ import { Badge } from "@/components/atoms/ui/badge"
 import { DataTableRowActions } from "@/components/molecules/table/Data-table-row-actions"
 import { DataTableColumnHeader } from "@/components/molecules/table/Data-table-column-header"
 import { ColumnConfig } from "@/types/table"
+import type { PaginationTableState } from "@/types/paginationType"
 
 const STORAGE_KEY = "table_column_visibility"
 
@@ -16,6 +17,7 @@ interface DynamicDataTableProps<TData extends object> {
     onRowClick?: (rowData: TData) => void
     selectedRowId?: string
     loading?: boolean
+    paginationTableState?: PaginationTableState
 }
 /** 
  * Filtro local: filtra el valor de la celda según el filtro
@@ -80,6 +82,7 @@ export function DynamicDataTable<TData extends object>({
     onRowClick,
     selectedRowId,
     loading = false,
+    paginationTableState,
 }: DynamicDataTableProps<TData>) {
     // 0) Cargar/guardar visibilidad
     const [columnVisibility] = React.useState<VisibilityState>(() => {
@@ -244,6 +247,7 @@ export function DynamicDataTable<TData extends object>({
             tableMeta={{ columnsConfigMap: configMap }}
             globalFilterFn={globalFn}
             loading={loading}
+            paginationTableState={paginationTableState}
         />
     )
 }

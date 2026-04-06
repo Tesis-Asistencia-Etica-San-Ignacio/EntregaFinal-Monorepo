@@ -25,6 +25,7 @@ import { Separator } from "../../atoms/ui/separator"
 interface DataTableFacetedFilterProps<TData, TValue> {
   column: Column<TData, TValue>
   title?: string
+  facetCounts?: Record<string, number>
   options: {
     label: string
     value: string
@@ -35,6 +36,7 @@ interface DataTableFacetedFilterProps<TData, TValue> {
 export function DataTableFacetedFilter<TData, TValue>({
   column,
   title,
+  facetCounts,
   options,
 }: DataTableFacetedFilterProps<TData, TValue>) {
   const facets = column.getFacetedUniqueValues()
@@ -84,6 +86,7 @@ export function DataTableFacetedFilter<TData, TValue>({
             <CommandGroup>
               {options.map((option) => {
                 const isSelected = selectedValues.has(option.value)
+                const optionCount = facetCounts?.[option.value] ?? facets.get(option.value) ?? 0
                 return (
                   <CommandItem
                     key={option.value}
@@ -99,21 +102,21 @@ export function DataTableFacetedFilter<TData, TValue>({
                   >
                     <div
                       className={cn(
-                        "mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary",
+                        "mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-[var(--sidebar-primary)] transition-colors",
                         isSelected
-                          ? "bg-primary text-primary-foreground"
-                          : "opacity-50 [&_svg]:invisible"
+                          ? "bg-[var(--sidebar-primary)] text-[var(--sidebar-primary-foreground)]"
+                          : "bg-[var(--selected-item-table)] text-[var(--sidebar-primary)] [&_svg]:invisible"
                       )}
                     >
-                      <Check className="h-4 w-4" />
+                      <Check className={cn("h-4 w-4", isSelected && "text-white")} />
                     </div>
                     {option.icon && (
                       <option.icon className="mr-2 h-4 w-4 text-muted-foreground" />
                     )}
                     <span>{option.label}</span>
-                    {facets.get(option.value) && (
+                    {typeof optionCount === "number" && (
                       <span className="ml-auto flex h-4 w-4 items-center justify-center font-mono text-xs">
-                        {facets.get(option.value)}
+                        {optionCount}
                       </span>
                     )}
                   </CommandItem>

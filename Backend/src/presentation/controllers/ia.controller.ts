@@ -1,120 +1,139 @@
 import { Request, Response } from 'express';
-import {
-  CreateEthicalRulesUseCase,
-  GenerateCompletionUseCase,
-  GetEvaluacionByIdUseCase,
-  GetPromptsByEvaluatorIdUseCase,
-  GetEvaluacionesByUserUseCase,
-  UpdateEvaluacionUseCase,
-  deleteEthicalRulesByEvaluationIdUseCase,
-  ObtainModelsUseCase,
-  ModifyProviderApiKeyUseCase,
-  GetUserByIdUseCase
-} from '../../application';
-import { EvaluatePipelineUseCase } from '../../application/useCases/ia/evaluatePipeline.useCase';
+import { EvaluateRequestSchema, ModifyProviderApiKeySchema } from '../../application/dtos/ia.dto';
+import { ModifyProviderApiKeyUseCase } from '../../application/useCases/ia/modifyProviderApiKey.useCase';
+import { ObtainModelsUseCase } from '../../application/useCases/ia/obtainModels.useCase';
+import { RunEvaluationUseCase } from '../../application/useCases/ia/runEvaluation.useCase';
+import { RunReEvaluationUseCase } from '../../application/useCases/ia/runReEvaluation.useCase';
+import { isValidObjectId, validateRequestBody } from '../../shared/utils';
 
 export class IAController {
-  private readonly pipelineUC: EvaluatePipelineUseCase;
-
   constructor(
-    createNormsUC: CreateEthicalRulesUseCase,
-    generateLLMUC: GenerateCompletionUseCase,
-    getEvalByIdUC: GetEvaluacionByIdUseCase,
-    getPromptsUC: GetPromptsByEvaluatorIdUseCase,
-    getEvalsByUserUC: GetEvaluacionesByUserUseCase,
-    updateEvalUC: UpdateEvaluacionUseCase,
-    deleteNormsUC: deleteEthicalRulesByEvaluationIdUseCase,
-    private readonly obtainModelsUC: ObtainModelsUseCase,
-    private readonly  modifyProviderApiKeyUC: ModifyProviderApiKeyUseCase,
-    private readonly getUserByIdUC: GetUserByIdUseCase
+    private readonly runEvaluationUseCase: RunEvaluationUseCase,
+    private readonly runReEvaluationUseCase: RunReEvaluationUseCase,
+    private readonly obtainModelsUseCase: ObtainModelsUseCase,
+    private readonly modifyProviderApiKeyUseCase: ModifyProviderApiKeyUseCase
+  ) {}
 
-    /* updateApiKey: UpdateEvaluacionUseCase, */
-  ) {
-    this.pipelineUC = new EvaluatePipelineUseCase(
-      getEvalByIdUC,
-      getEvalsByUserUC,
-      getPromptsUC,
-      generateLLMUC,
-      deleteNormsUC,
-      createNormsUC,
-      updateEvalUC,
-    );
+  private buildIaErrorResponse(error: unknown): { status: number; message: string } {
+    const rawMessage = error instanceof Error ? error.message : 'Error';
+    const normalized = rawMessage.toLowerCase();
+
+    if (
+      normalized.includes('413') ||
+      normalized.includes('request too large') ||
+      normalized.includes('message size') ||
+      normalized.includes('too large for model')
+    ) {
+      return {
+        status: 413,
+        message:
+          'La solicitud es demasiado grande para el modelo seleccionado. Prueba con otro modelo o vuelve a intentarlo en unos segundos.',
+      };
+    }
+
+    if (
+      normalized.includes('quota exceeded') ||
+      normalized.includes('too many requests') ||
+      normalized.includes('resource_exhausted') ||
+      normalized.includes('429') ||
+      normalized.includes('rate_limit_exceeded') ||
+      normalized.includes('tokens per minute') ||
+      normalized.includes('please try again in')
+    ) {
+      return {
+        status: 429,
+        message:
+          'Se alcanzó temporalmente el límite del proveedor de IA. Espera un momento o cambia de proveedor/modelo.',
+      };
+    }
+
+    return {
+      status: 500,
+      message: rawMessage,
+    };
   }
 
-  /** Primera evaluación */
   public evaluate = async (req: Request, res: Response) => {
+    const validation = validateRequestBody(EvaluateRequestSchema, req.body);
+    if (!validation.success) {
+      res.status(400).json({ success: false, message: validation.message });
+      return;
+    }
+
+    if (!req.user?.id || !isValidObjectId(req.user.id)) {
+      res.status(401).json({ success: false, message: 'Usuario no autenticado' });
+      return;
+    }
+
     try {
-      const evaluador = await this.getUserByIdUC.execute(req.user!.id);
-
-      if (!evaluador) {
-        res.status(404).json({ success: false, message: 'Evaluador no encontrado' });
-        return;
-      }
-
-      if (!evaluador.modelo || !evaluador.provider) {
-        res.status(400).json({ success: false, message: 'Evaluador sin modelo o proveedor' });
-        return;
-      }
-  
-      await this.pipelineUC.execute({
-        evaluatorId: req.user!.id,
-        model: evaluador.modelo,
-        provider: evaluador.provider,
-        evaluationId: req.body.evaluationId,
-        cleanNormsBefore: false,
+      await this.runEvaluationUseCase.execute({
+        evaluatorId: req.user.id,
+        evaluationId: validation.data.evaluationId,
       });
+
       res.json({ success: true, message: 'Evaluación procesada con éxito' });
-    } catch (e: any) {
-      res.status(500).json({ success: false, error: e.message ?? 'Error' });
+    } catch (error: unknown) {
+      const iaError = this.buildIaErrorResponse(error);
+      res.status(iaError.status).json({ success: false, message: iaError.message });
     }
   };
 
-  /** Re-evaluación */
   public reEvaluate = async (req: Request, res: Response) => {
+    const validation = validateRequestBody(EvaluateRequestSchema, req.body);
+    if (!validation.success) {
+      res.status(400).json({ success: false, message: validation.message });
+      return;
+    }
+
+    if (!req.user?.id || !isValidObjectId(req.user.id)) {
+      res.status(401).json({ success: false, message: 'Usuario no autenticado' });
+      return;
+    }
+
     try {
-      const evaluador = await this.getUserByIdUC.execute(req.user!.id);
-
-      if (!evaluador) {
-        res.status(404).json({ success: false, message: 'Evaluador no encontrado' });
-        return;
-      }
-
-      if (!evaluador.modelo || !evaluador.provider) {
-        res.status(400).json({ success: false, message: 'Evaluador sin modelo o proveedor' });
-        return;
-      }
-
-      await this.pipelineUC.execute({
-        evaluatorId: req.user!.id,
-        model: evaluador.modelo,
-        provider: evaluador.provider,
-        evaluationId: req.body.evaluationId,
-        cleanNormsBefore: true,
+      await this.runReEvaluationUseCase.execute({
+        evaluatorId: req.user.id,
+        evaluationId: validation.data.evaluationId,
       });
+
       res.json({ success: true, message: 'Re-evaluación exitosa' });
-    } catch (e: any) {
-      
-      res.status(500).json({ success: false, error: e.message ?? 'Error' });
+    } catch (error: unknown) {
+      const iaError = this.buildIaErrorResponse(error);
+      res.status(iaError.status).json({ success: false, message: iaError.message });
     }
   };
 
-  public getModels = async (req: Request, res: Response) => {
+  public getModels = async (_req: Request, res: Response) => {
     try {
-      const models = await this.obtainModelsUC.execute();
+      const models = await this.obtainModelsUseCase.execute();
       res.json({ success: true, models });
-    } catch (e: any) {
-      res.status(500).json({ success: false, error: e.message ?? 'Error' });
+    } catch (error: unknown) {
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : 'Error',
+      });
     }
   };
 
   public modifyApiKey = async (req: Request, res: Response) => {
+    const validation = validateRequestBody(ModifyProviderApiKeySchema, req.body);
+    if (!validation.success) {
+      res.status(400).json({ success: false, message: validation.message });
+      return;
+    }
+
     try {
-      const { provider, apiKey } = req.body;
-      const result = await this.modifyProviderApiKeyUC.execute(provider as string, apiKey as string);
+      const result = await this.modifyProviderApiKeyUseCase.execute(
+        validation.data.provider,
+        validation.data.apiKey
+      );
+
       res.json({ success: true, message: `API key para ${result} actualizada con éxito` });
-    } catch (e: any) {
-      res.status(500).json({ success: false, error: e.message ?? 'Error' });
+    } catch (error: unknown) {
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : 'Error',
+      });
     }
   };
-
 }

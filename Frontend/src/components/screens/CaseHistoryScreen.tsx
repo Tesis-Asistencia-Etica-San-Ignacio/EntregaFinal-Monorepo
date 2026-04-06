@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import type { ColumnFiltersState, SortingState } from "@tanstack/react-table";
 import type { ColumnConfig } from "@/types/table";
 import useGetCasesByUserHook from "@/hooks/cases/useGetCasesByUser";
 import useDeleteCases from "@/hooks/cases/useDeleteCases";
@@ -8,18 +9,39 @@ import HistoryTemplate from "../templates/HistoryTemplate";
 import useFetchCasePdf from "@/hooks/pdf/useFetchCasesPdf";
 
 export default function CaseHistoryScreen() {
-  // ──────────────────────── hooks y estados ────────────────────────────────
-  const { files } = useGetCasesByUserHook();
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [search, setSearch] = useState("");
+  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
+  const [sorting, setSorting] = useState<SortingState>([]);
+  const remoteFilters = useMemo<Record<string, string[]>>(
+    () =>
+      columnFilters.reduce<Record<string, string[]>>((acc, filter) => {
+        if (Array.isArray(filter.value) && filter.value.length > 0) {
+          acc[filter.id] = filter.value.map((value) => String(value));
+        }
+        return acc;
+      }, {}),
+    [columnFilters]
+  );
+  const currentSort = sorting[0];
 
+  const { files, pagination, isLoading } = useGetCasesByUserHook({
+    page,
+    pageSize,
+    search,
+    filters: remoteFilters,
+    sortBy: currentSort?.id,
+    sortOrder: currentSort ? (currentSort.desc ? "desc" : "asc") : undefined,
+  });
   const { deleteCase } = useDeleteCases();
 
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [confirmValue, setConfirmValue] = useState("");
   const [toDeleteId, setToDeleteId] = useState<string>("");
-  //pdf
   const [pdfModalOpen, setPdfModalOpen] = useState(false);
   const { pdfUrl, fetchCasePdf, loading: pdfLoading } = useFetchCasePdf();
-  // ───────────────────────────── efectos ───────────────────────────────────
+
   const tableData = useMemo(
     () =>
       files.map((f: any) => ({
@@ -33,15 +55,13 @@ export default function CaseHistoryScreen() {
       })),
     [files]
   );
-  // ───────────────────── handlers de la tabla ──────────────────────────────
 
   const handleViewPdf = async (row: any) => {
     const parts = (row.pdf as string).split("/");
     const filename = parts[parts.length - 1];
     await fetchCasePdf(filename);
     setPdfModalOpen(true);
-  }
-
+  };
 
   const handleDelete = (row: any) => {
     setToDeleteId(row.id);
@@ -53,7 +73,7 @@ export default function CaseHistoryScreen() {
     setDeleteDialogOpen(false);
     setConfirmValue("");
   };
-  // — Columnas de la tabla —
+
   const columnsConfig: ColumnConfig[] = [
     { id: "id", accessorKey: "id", headerLabel: "ID", searchable: false, hidden: true },
     { id: "pdf", accessorKey: "pdf", headerLabel: "pdf", searchable: false, hidden: true },
@@ -66,45 +86,67 @@ export default function CaseHistoryScreen() {
       id: "actions",
       type: "actions",
       actionItems: [
-        // { label: "Editar", onClick: handleEdit },
         { label: "Eliminar", onClick: handleDelete },
         { label: "Ver PDF", onClick: handleViewPdf },
       ],
     },
   ];
 
-  // ─────────────────────────── render ─────────────────────────────────────
   return (
     <HistoryTemplate
-      /* ---------- Tabla ---------- */
       data={tableData}
       columnsConfig={columnsConfig}
-
-      /* -------- Eliminación ------ */
+      tableLoading={isLoading}
+      paginationTableState={{
+        page,
+        pageSize,
+        totalItems: pagination?.totalItems ?? 0,
+        totalPages: pagination?.totalPages ?? 1,
+        search,
+        columnFilters,
+        sorting,
+        onPageChange: setPage,
+        onPageSizeChange: (nextPageSize) => {
+          setPageSize(nextPageSize);
+          setPage(1);
+        },
+        onSearchChange: (nextSearch) => {
+          setSearch(nextSearch);
+          setPage(1);
+        },
+        onColumnFiltersChange: (nextFilters) => {
+          setColumnFilters(nextFilters);
+          setPage(1);
+        },
+        onSortingChange: (nextSorting) => {
+          setSorting(nextSorting);
+          setPage(1);
+        },
+      }}
       deleteDialogOpen={deleteDialogOpen}
       onDeleteDialogChange={setDeleteDialogOpen}
       onConfirmDelete={handleConfirmDelete}
       confirmValue={confirmValue}
       onConfirmValueChange={setConfirmValue}
-
-      /*-----PDF-----*/
       extraModal={
         <ModalForm
           open={pdfModalOpen}
           onOpenChange={open => {
             setPdfModalOpen(open);
-            if (!open) URL.revokeObjectURL(pdfUrl);  // libera memoria
+            if (!open) URL.revokeObjectURL(pdfUrl);
           }}
           title={{ text: "Ver Consentimiento Informado", align: "left" }}
-          formDataConfig={[[
-            {
-              type: "custom",
-              key: "pdfPreview",
-              placeholder: "Vista previa",
-              component: <PdfRenderer url={pdfUrl} externalLoading={pdfLoading} />,
-              required: false,
-            }
-          ]]}
+          formDataConfig={[
+            [
+              {
+                type: "custom",
+                key: "pdfPreview",
+                placeholder: "Vista previa",
+                component: <PdfRenderer url={pdfUrl} externalLoading={pdfLoading} />,
+                required: false,
+              },
+            ],
+          ]}
           onSubmit={() => setPdfModalOpen(false)}
           submitButtonText="Cerrar"
           width="70%"

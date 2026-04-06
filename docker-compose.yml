@@ -84,9 +84,9 @@ services:
 
 volumes:
   mongo_data:
-    name: mongo_data
+    name: mongo_data_tesis
   minio_data:
-    name: minio_data
+    name: minio_data_tesis
 
 networks:
   husi-network:

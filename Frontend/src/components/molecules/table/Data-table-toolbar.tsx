@@ -18,6 +18,9 @@ export function DataTableToolbar<TData>({ table }: DataTableToolbarProps<TData>)
   const globalFilterValue = table.getState().globalFilter
 
   const configMap = (table.options.meta as any)?.columnsConfigMap as Record<string, ColumnConfig>
+  const facetCounts = (table.options.meta as any)?.facetCounts as
+    | Record<string, Record<string, number>>
+    | undefined
 
   const facetedColumns = table
     .getAllLeafColumns()
@@ -45,6 +48,7 @@ export function DataTableToolbar<TData>({ table }: DataTableToolbarProps<TData>)
                 column={col}
                 title={title}
                 options={items}
+                facetCounts={facetCounts?.[col.id]}
               />
             )
           })}

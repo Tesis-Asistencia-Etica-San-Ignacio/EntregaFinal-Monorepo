@@ -7,19 +7,9 @@ export default function useDeleteCasesHook() {
   const qc = useQueryClient();
   const { notifySuccess, notifyError } = useNotify();
 
-  const mutation = useMutation<
-    void,
-    Error,
-    string
-  >({
+  const mutation = useMutation<void, Error, string>({
     mutationFn: id => deleteCase(id),
-
-    onSuccess: (_, id) => {
-      /** quita del caché el registro borrado */
-      qc.setQueryData<any[]>(QUERY_KEYS.CASES, old =>
-        old ? old.filter(c => c.id !== id) : []
-      );
-
+    onSuccess: () => {
       notifySuccess({
         title: "Caso eliminado",
         description: "Se quitó del historial.",
@@ -27,13 +17,15 @@ export default function useDeleteCasesHook() {
         closeButton: true,
       });
     },
-
     onError: err =>
       notifyError({
         title: "Error eliminando caso",
         description: err.message,
         closeButton: true,
       }),
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: QUERY_KEYS.CASES });
+    },
   });
 
   return {

@@ -46,7 +46,7 @@ DialogOverlay.displayName = "DialogOverlay";
 const DialogContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>
->(({ className, children, ...props }, ref) => (
+>(({ className, children, onInteractOutside, onPointerDownOutside, ...props }, ref) => (
   <DialogPortal>
     <DialogOverlay />
     <DialogPrimitive.Content
@@ -60,6 +60,20 @@ const DialogContent = React.forwardRef<
         "gap-4 rounded-lg border p-6 shadow-lg duration-200",
         className
       )}
+      onInteractOutside={(event) => {
+        const target = event.target as HTMLElement | null;
+        if (target?.closest(".toaster, [data-sonner-toaster], [data-sonner-toast], [data-close-button]")) {
+          event.preventDefault();
+        }
+        onInteractOutside?.(event);
+      }}
+      onPointerDownOutside={(event) => {
+        const target = event.target as HTMLElement | null;
+        if (target?.closest(".toaster, [data-sonner-toaster], [data-sonner-toast], [data-close-button]")) {
+          event.preventDefault();
+        }
+        onPointerDownOutside?.(event);
+      }}
       {...props}
     >
       {children}

@@ -1,58 +1,48 @@
 import { Router } from "express";
-import { EvaluacionController } from "../controllers";
-
-import {
-  CreateEvaluacionUseCase,
-  GetAllEvaluacionsUseCase,
-  GetEvaluacionByIdUseCase,
-  UpdateEvaluacionUseCase,
-  DeleteEvaluacionUseCase,
-  GetEvaluacionesByUserUseCase,
-  deleteEthicalRulesByEvaluationIdUseCase,
-} from "../../application";
-
-import {
-  EvaluacionRepository,
-  EthicalNormRepository,
-} from "../../infrastructure";
-
+import { DeleteEthicalRulesByEvaluationIdUseCase } from "../../application/useCases/ethical_rules/deleteEthicalRulesByEvaluationId.useCase";
+import { CreateEvaluationUseCase } from "../../application/useCases/evaluation/createEvaluation.useCase";
+import { DeleteEvaluationUseCase } from "../../application/useCases/evaluation/deleteEvaluation.useCase";
+import { GetAllEvaluationsUseCase } from "../../application/useCases/evaluation/getAllEvaluations.useCase";
+import { GetEvaluationByIdUseCase } from "../../application/useCases/evaluation/getEvaluationsById.useCase";
+import { GetPaginatedEvaluationsByUserUseCase } from "../../application/useCases/evaluation/getPaginatedEvaluationsByUser.useCase";
+import { UpdateEvaluationUseCase } from "../../application/useCases/evaluation/updateEvaluation.useCase";
+import { EthicalNormRepository } from "../../infrastructure/database/repositories/ethicalRule.repository.impl";
+import { EvaluationRepository } from "../../infrastructure/database/repositories/evaluation.repository.impl";
+import { MinioFileStorageService } from "../../infrastructure/services/minio-file-storage.service";
+import { EvaluationController } from "../controllers/evaluation.controller";
 import { validateRoleMiddleware } from "../middleware/jwtMiddleware";
 
 const router = Router();
-
-/* ───── Repositorios ───── */
-const evaluacionRepo = new EvaluacionRepository();
-const ethicalNormRepo = new EthicalNormRepository();
-
-/* ───── Use‑cases auxiliares ───── */
-const deleteNormsUC = new deleteEthicalRulesByEvaluationIdUseCase(
-  ethicalNormRepo,
+const evaluationRepository = new EvaluationRepository();
+const ethicalNormRepository = new EthicalNormRepository();
+const fileStorage = new MinioFileStorageService();
+const createEvaluationUseCase = new CreateEvaluationUseCase(evaluationRepository);
+const getAllEvaluationsUseCase = new GetAllEvaluationsUseCase(evaluationRepository);
+const getEvaluationByIdUseCase = new GetEvaluationByIdUseCase(evaluationRepository);
+const updateEvaluationUseCase = new UpdateEvaluationUseCase(evaluationRepository);
+const getPaginatedEvaluationsByUserUseCase = new GetPaginatedEvaluationsByUserUseCase(evaluationRepository);
+const deleteEthicalRulesByEvaluationIdUseCase = new DeleteEthicalRulesByEvaluationIdUseCase(
+  ethicalNormRepository
+);
+const deleteEvaluationUseCase = new DeleteEvaluationUseCase(
+  evaluationRepository,
+  deleteEthicalRulesByEvaluationIdUseCase,
+  fileStorage
+);
+const evaluationController = new EvaluationController(
+  createEvaluationUseCase,
+  getAllEvaluationsUseCase,
+  getEvaluationByIdUseCase,
+  updateEvaluationUseCase,
+  deleteEvaluationUseCase,
+  getPaginatedEvaluationsByUserUseCase
 );
 
-/* ───── Use‑cases principales ───── */
-const createEvaluacionUC = new CreateEvaluacionUseCase(evaluacionRepo);
-const getAllEvaluacionsUC = new GetAllEvaluacionsUseCase(evaluacionRepo);
-const getEvaluacionByIdUC = new GetEvaluacionByIdUseCase(evaluacionRepo);
-const updateEvaluacionUC = new UpdateEvaluacionUseCase(evaluacionRepo);
-const deleteEvaluacionUC = new DeleteEvaluacionUseCase(evaluacionRepo, deleteNormsUC);
-const getEvalsByUserUC = new GetEvaluacionesByUserUseCase(evaluacionRepo);
-
-/* ───── Controlador ───── */
-const evaluacionController = new EvaluacionController(
-  createEvaluacionUC,
-  getAllEvaluacionsUC,
-  getEvaluacionByIdUC,
-  updateEvaluacionUC,
-  deleteEvaluacionUC,
-  getEvalsByUserUC,
-);
-
-/* ───── Rutas ───── */
-router.get("/my", validateRoleMiddleware(["EVALUADOR"]), evaluacionController.getByUser,);
-router.get("/:id", validateRoleMiddleware(["EVALUADOR"]), evaluacionController.getById,);
-router.get("/", validateRoleMiddleware(["EVALUADOR"]), evaluacionController.getAll,);
-router.post("/", validateRoleMiddleware(["EVALUADOR"]), evaluacionController.create,);
-router.patch("/:id", validateRoleMiddleware(["EVALUADOR"]), evaluacionController.update,);
-router.delete("/:id", validateRoleMiddleware(["EVALUADOR"]), evaluacionController.delete,);
+router.get("/my", validateRoleMiddleware(["EVALUADOR"]), evaluationController.getByUser);
+router.get("/:id", validateRoleMiddleware(["EVALUADOR"]), evaluationController.getById);
+router.get("/", validateRoleMiddleware(["EVALUADOR"]), evaluationController.getAll);
+router.post("/", validateRoleMiddleware(["EVALUADOR"]), evaluationController.create);
+router.patch("/:id", validateRoleMiddleware(["EVALUADOR"]), evaluationController.update);
+router.delete("/:id", validateRoleMiddleware(["EVALUADOR"]), evaluationController.delete);
 
 export default router;

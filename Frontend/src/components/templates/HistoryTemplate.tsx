@@ -8,6 +8,7 @@ import { Alert, AlertTitle, AlertDescription } from "@/components/atoms/ui/alert
 import type { FormField } from "@/types/formTypes";
 import ModalForm from "../organisms/dialogs/ModalForm";
 import { ReactNode } from "react";
+import type { PaginationTableState } from "@/types/paginationType";
 
 interface HistoryTemplateProps {
   /* ---------- Tabla ---------- */
@@ -16,6 +17,7 @@ interface HistoryTemplateProps {
   selectedRowId?: string;
   onRowClick?: (row: any) => void;
   tableLoading?: boolean;
+  paginationTableState?: PaginationTableState;
 
   /* -------- Eliminación ------ */
   deleteDialogOpen: boolean;
@@ -43,6 +45,7 @@ export default function HistoryTemplate({
   selectedRowId,
   onRowClick,
   tableLoading = false,
+  paginationTableState,
 
   /* -------- Eliminación ------ */
   deleteDialogOpen,
@@ -80,6 +83,7 @@ export default function HistoryTemplate({
             selectedRowId={selectedRowId}
             onRowClick={onRowClick}
             loading={tableLoading}
+            paginationTableState={paginationTableState}
           />
         </div>
       </div>

@@ -32,6 +32,7 @@ export default function LayoutTemplate({
   getInitials,
 }: LayoutTemplateProps) {
   const location = useLocation()
+  const locationState = location.state as { breadcrumbLabel?: string } | null
   const segments = location.pathname
     .split("/")
     .filter((seg) => seg !== "")
@@ -76,7 +77,9 @@ export default function LayoutTemplate({
                     <BreadcrumbItem>
                       {isLast ? (
                         <BreadcrumbPage>
-                          {makeLabel(seg)}
+                          {locationState?.breadcrumbLabel && rawPath.startsWith("/evaluacion/")
+                            ? locationState.breadcrumbLabel
+                            : makeLabel(seg)}
                         </BreadcrumbPage>
                       ) : (
                         <BreadcrumbLink asChild>

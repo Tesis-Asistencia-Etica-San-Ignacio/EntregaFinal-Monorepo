@@ -4,7 +4,7 @@ import { Button } from "@/components/atoms/ui/button";
 import { DynamicForm, DynamicFormHandles } from "@/components/molecules/Dynamic-form";
 import { Tabs, TabsContent, TabsList, TabsTrigger, } from "@/components/atoms/ui/tabs";
 import type { FormField } from "@/types/formTypes";
-import { LoginInput, User } from "../../types";
+import { CreateUserInput, LoginInput } from "../../types";
 import { useNotify } from "@/hooks/useNotify";
 
 import logoLight from "@/assets/LogoHUSI.png";
@@ -14,7 +14,7 @@ interface AuthFormProps {
     loginFields: FormField[];
     registryFields: FormField[];
     onLogin: (values: LoginInput) => Promise<void>;
-    onRegister: (values: User) => Promise<void>;
+    onRegister: (values: CreateUserInput) => Promise<void>;
     className?: string;
 }
 
@@ -59,7 +59,7 @@ export default function AuthForm({
 
         registryFormRef.current.handleSubmit(async (data) => {
             try {
-                await onRegister(data as User);
+                await onRegister(data as CreateUserInput);
                 notifySuccess({
                     title: "Cuenta creada",
                     description: "Te has registrado exitosamente.",

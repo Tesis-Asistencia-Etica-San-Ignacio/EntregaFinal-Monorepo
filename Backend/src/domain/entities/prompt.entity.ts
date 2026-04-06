@@ -8,4 +8,7 @@ export interface Prompt {
     createdAt: Date;
     updatedAt: Date;
   }
+
+export type CreatePrompt = Omit<Prompt, 'id' | 'createdAt' | 'updatedAt'>
+export type UpdatePrompt = Partial<Pick<Prompt, 'nombre' | 'texto' | 'descripcion' | 'codigo'>>
   

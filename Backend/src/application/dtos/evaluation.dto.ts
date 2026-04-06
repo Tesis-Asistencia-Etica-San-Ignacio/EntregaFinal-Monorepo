@@ -1,34 +1,41 @@
-import { Type, Static } from '@sinclair/typebox';
+import { Static, Type } from '@sinclair/typebox';
+import { EmailSchema } from './shared/email.schema';
 
-// En tu diagrama, el estado de la evaluación puede ser "PENDIENTE", 
-// "EN CURSO" o "EVALUADO".
 export const ESTADO_EVALUACION = Type.Union([
   Type.Literal('PENDIENTE'),
   Type.Literal('EN CURSO'),
   Type.Literal('EVALUADO'),
 ]);
 
+export const CreateEvaluationSchema = Type.Object(
+  {
+    uid: Type.String({ pattern: '^[0-9a-fA-F]{24}$' }),
+    id_fundanet: Type.String({ minLength: 1, maxLength: 255 }),
+    file: Type.String({ minLength: 1, maxLength: 5000 }),
+    estado: ESTADO_EVALUACION,
+    tipo_error: Type.String({ minLength: 1, maxLength: 255 }),
+    aprobado: Type.Boolean(),
+    correo_estudiante: EmailSchema,
+    version: Type.Optional(Type.Number()),
+  },
+  { additionalProperties: false }
+);
+export type CreateEvaluationDto = Static<typeof CreateEvaluationSchema>;
 
-// Esquema para crear una Evaluacion
-export const CreateEvaluacionSchema = Type.Object({
-  uid: Type.String({ pattern: '^[0-9a-fA-F]{24}$' }), // Representa un ObjectId como string
-  id_fundanet: Type.String(),
-  file: Type.String(),
-  estado: ESTADO_EVALUACION,
-  tipo_error: Type.String(),
-  aprobado: Type.Boolean(),
-  correo_estudiante: Type.String(),
-  version: Type.Optional(Type.Number()),
-});
+export const UpdateEvaluationSchema = Type.Object(
+  {
+    id_fundanet: Type.Optional(Type.String({ minLength: 1, maxLength: 255 })),
+    estado: Type.Optional(ESTADO_EVALUACION),
+    tipo_error: Type.Optional(Type.String({ minLength: 1, maxLength: 255 })),
+    aprobado: Type.Optional(Type.Boolean()),
+    correo_estudiante: Type.Optional(EmailSchema),
+    version: Type.Optional(Type.Number()),
+  },
+  { additionalProperties: false, minProperties: 1 }
+);
+export type UpdateEvaluationDto = Static<typeof UpdateEvaluationSchema>;
 
-export type CreateEvaluacionDto = Static<typeof CreateEvaluacionSchema>;
-
-// Esquema para actualizar una Evaluacion (todos los campos opcionales)
-export const UpdateEvaluacionSchema = Type.Partial(CreateEvaluacionSchema);
-export type UpdateEvaluacionDto = Static<typeof UpdateEvaluacionSchema>;
-
-// Esquema para la respuesta de Evaluacion (excluyendo campos sensibles si los hubiera)
-export const EvaluacionResponseSchema = Type.Object({
+export const EvaluationResponseSchema = Type.Object({
   id: Type.String(),
   uid: Type.String(),
   id_fundanet: Type.String(),
@@ -41,10 +48,9 @@ export const EvaluacionResponseSchema = Type.Object({
   createdAt: Type.String({ format: 'date-time' }),
   updatedAt: Type.String({ format: 'date-time' }),
 });
-export type EvaluacionResponseDto = Static<typeof EvaluacionResponseSchema>;
+export type EvaluationResponseDto = Static<typeof EvaluationResponseSchema>;
 
-// Esquema para una lista de evaluaciones
-export const EvaluacionesListSchema = Type.Object({
-  evaluaciones: Type.Array(EvaluacionResponseSchema),
+export const EvaluationsListSchema = Type.Object({
+  evaluations: Type.Array(EvaluationResponseSchema),
 });
-export type EvaluacionesListDto = Static<typeof EvaluacionesListSchema>;
+export type EvaluationsListDto = Static<typeof EvaluationsListSchema>;

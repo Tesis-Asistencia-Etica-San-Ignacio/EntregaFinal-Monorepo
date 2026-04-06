@@ -1,5 +1,5 @@
 import { AuthService } from '../../services/auth.service';
-import { UserResponseDto } from '../../../application';
+import { UserResponseDto } from '../../dtos/user.dto';
 
 export class GetSessionUseCase {
     private authService: AuthService;

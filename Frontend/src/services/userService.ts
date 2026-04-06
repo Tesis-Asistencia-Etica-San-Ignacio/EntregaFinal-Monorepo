@@ -24,7 +24,7 @@ export const updateUser = async (
 };
 export const updatePassword = async (
     payload: UpdatePasswordInput,
-): Promise<User> => {
-    const { data } = await userApi.post<User>('/user/update-password', payload);
+): Promise<{ message: string }> => {
+    const { data } = await userApi.post<{ message: string }>('/user/update-password', payload);
     return data;
 };

@@ -1,5 +1,6 @@
 import { requestsApi } from "@/lib/api/requestsApi";
 import type { FileItem } from "@/types/fileType";
+import type { PaginatedResponse, TableQueryParams } from "@/types/paginationType";
 
 /**
  * Guarda el PDF previamente cacheado.
@@ -17,8 +18,19 @@ export const createCase = async (caseData: Record<string, any>, pdfId: string): 
  * • getCasesByUser y deleteCase permanecen igual.
  * • Ya no necesitas generatePdfInvestigator por separado.
  */
-export const getCasesByUser = async (): Promise<FileItem[]> => {
-  const response = await requestsApi.get("/cases/my");
+export const getCasesByUser = async (
+  params: TableQueryParams
+): Promise<PaginatedResponse<FileItem>> => {
+  const response = await requestsApi.get("/cases/my", {
+    params: {
+      page: params.page,
+      pageSize: params.pageSize,
+      search: params.search,
+      sortBy: params.sortBy,
+      sortOrder: params.sortOrder,
+      filters: params.filters ? JSON.stringify(params.filters) : undefined,
+    },
+  });
   return response.data;
 };
 

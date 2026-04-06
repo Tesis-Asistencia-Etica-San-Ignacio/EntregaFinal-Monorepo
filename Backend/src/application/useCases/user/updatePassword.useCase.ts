@@ -1,39 +1,33 @@
-import { IUserRepository } from '../../../domain';
 import bcrypt from 'bcryptjs';
 import config from '../../../infrastructure/config';
+import type { IUserRepository } from '../../../domain/repositories/user.repository';
+import { AppError } from '../../../shared/errors/appError';
+import { UpdatePasswordDto } from '../../dtos/user.dto';
 
-interface UpdatePasswordDto {
+interface UpdatePasswordCommand extends UpdatePasswordDto {
   userId: string;
-  password: string;
-  newPassword: string;
 }
 
 export class UpdatePasswordUseCase {
-  constructor(private readonly userRepository: IUserRepository) { }
+  constructor(private readonly userRepository: IUserRepository) {}
 
-  public async execute(data: UpdatePasswordDto): Promise<void> {
+  public async execute(data: UpdatePasswordCommand): Promise<void> {
     const { userId, password, newPassword } = data;
 
-    console.log("data", data)
-
-    // 1. Buscar el usuario en la base de datos
-    const user = await this.userRepository.findById(userId);
+    const user = await this.userRepository.findByIdWithPassword(userId);
     if (!user) {
-      throw new Error('Usuario no encontrado');
+      throw new AppError('Usuario no encontrado', 404);
+    }
+    if (!user.password) {
+      throw new AppError('La contraseña actual es incorrecta', 400);
     }
 
-    console.log("user", user)
-
-    // 2. Verificar que la contraseña actual coincida
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
-      throw new Error('La contraseña actual es incorrecta');
+      throw new AppError('La contraseña actual es incorrecta', 400);
     }
 
-    // 3. Hashear la nueva contraseña
     const hashedNewPassword = await bcrypt.hash(newPassword, config.jwt.saltRounds);
-
-    // 4. Actualizar la contraseña en la base de datos
-    await this.userRepository.update(userId, { password: hashedNewPassword });
+    await this.userRepository.updatePassword(userId, hashedNewPassword);
   }
 }

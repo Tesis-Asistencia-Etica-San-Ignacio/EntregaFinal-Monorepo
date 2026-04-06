@@ -1,4 +1,4 @@
-import { IUserRepository } from '../../../domain';
+import type { IUserRepository } from '../../../domain/repositories/user.repository';
 
 export class DeleteUserUseCase {
   constructor(private readonly userRepository: IUserRepository) {}

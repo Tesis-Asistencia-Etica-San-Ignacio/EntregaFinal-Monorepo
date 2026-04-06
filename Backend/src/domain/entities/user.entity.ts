@@ -5,12 +5,14 @@ export interface BaseUser {
   name: string;
   last_name: string;
   email: string;
-  password: string;
+  password?: string;
   type: UserType;
-  modelo: string;
-  provider: string;
+  modelo?: string;
+  provider?: string;
   createdAt: Date;
   updatedAt: Date;
 }
 
 export type User = BaseUser;
+export type CreateUser = Omit<User, 'id' | 'createdAt' | 'updatedAt'>;
+export type UpdateUser = Partial<Pick<User, 'name' | 'last_name' | 'email' | 'modelo' | 'provider'>>;

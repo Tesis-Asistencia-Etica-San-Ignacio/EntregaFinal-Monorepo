@@ -1,81 +1,84 @@
-import { EthicalNorm as EthicalNormModel } from "../models";
-import { EthicalNorm, IEthicalNormRepository } from "../../../domain";
-import { UpdateEthicalNormDto, EthicalNormResponseDto } from "../../../application";
-import { Types } from "mongoose";
+import { Types } from 'mongoose';
+import type { CreateEthicalNorm, EthicalNorm, UpdateEthicalNorm } from '../../../domain/entities/ethicalRule.entity';
+import type { IEthicalNormRepository } from '../../../domain/repositories/ethicalRule.repository';
+import { isValidObjectId } from '../../../shared/utils';
+import { EthicalNorm as EthicalNormModel } from '../models/ethicalRule.model';
 
 export class EthicalNormRepository implements IEthicalNormRepository {
-  // Obtener todas las normas éticas
-  public async findAll(): Promise<EthicalNormResponseDto[]> {
+  public async findAll(): Promise<EthicalNorm[]> {
     const norms = await EthicalNormModel.find().lean();
-    return norms.map(norm => this.toResponseDto(norm));
+    return norms.map((norm) => this.toDomainEntity(norm));
   }
 
-  // Obtener norma por ID
-  public async findById(id: string): Promise<EthicalNormResponseDto | null> {
+  public async findById(id: string): Promise<EthicalNorm | null> {
+    if (!isValidObjectId(id)) {
+      return null;
+    }
+
     const norm = await EthicalNormModel.findById(id).lean();
-    return norm ? this.toResponseDto(norm) : null;
+    return norm ? this.toDomainEntity(norm) : null;
   }
 
-  // Crear nueva norma
-  public async create(data: Omit<EthicalNorm, "id">): Promise<EthicalNorm> {
+  public async create(data: CreateEthicalNorm): Promise<EthicalNorm> {
     const norm = await EthicalNormModel.create({
       ...data,
-      evaluationId: new Types.ObjectId(data.evaluationId)
+      evaluationId: new Types.ObjectId(data.evaluationId),
     });
+
     return this.toDomainEntity(norm.toObject());
   }
 
-  // Actualizar norma existente
   public async update(
     id: string,
-    data: UpdateEthicalNormDto
-  ): Promise<EthicalNormResponseDto | null> {
+    data: UpdateEthicalNorm
+  ): Promise<EthicalNorm | null> {
+    if (!isValidObjectId(id)) {
+      return null;
+    }
+
     const updateData = data.evaluationId
       ? { ...data, evaluationId: new Types.ObjectId(data.evaluationId) }
       : data;
 
-    const norm = await EthicalNormModel.findByIdAndUpdate(
-      id,
-      updateData,
-      { new: true, runValidators: true }
-    ).lean();
+    const norm = await EthicalNormModel.findByIdAndUpdate(id, updateData, {
+      new: true,
+      runValidators: true,
+    }).lean();
 
-    return norm ? this.toResponseDto(norm) : null;
+    return norm ? this.toDomainEntity(norm) : null;
   }
 
-  // Eliminar norma
   public async delete(id: string): Promise<boolean> {
+    if (!isValidObjectId(id)) {
+      return false;
+    }
+
     const result = await EthicalNormModel.findByIdAndDelete(id);
     return !!result;
   }
 
-  // Buscar normas por ID de evaluación
-  public async findByEvaluationId(evaluationId: string): Promise<EthicalNormResponseDto[]> {
+  public async findByEvaluationId(evaluationId: string): Promise<EthicalNorm[]> {
+    if (!isValidObjectId(evaluationId)) {
+      return [];
+    }
+
     const norms = await EthicalNormModel.find({
-      evaluationId: new Types.ObjectId(evaluationId)
+      evaluationId: new Types.ObjectId(evaluationId),
     }).lean();
 
-    return norms.map(norm => this.toResponseDto(norm));
+    return norms.map((norm) => this.toDomainEntity(norm));
   }
 
   public async deleteByEvaluationId(evaluationId: string): Promise<boolean> {
-    const result = await EthicalNormModel.deleteMany({ evaluationId });
-    return result.deletedCount > 0;
-  }
+    if (!isValidObjectId(evaluationId)) {
+      return false;
+    }
 
-  // Helpers para conversión de tipos
-  private toResponseDto(norm: any): EthicalNormResponseDto {
-    return {
-      id: norm._id.toString(),
-      evaluationId: norm.evaluationId.toString(),
-      description: norm.description,
-      status: norm.status,
-      justification: norm.justification,
-      cita: norm.cita,
-      codeNumber: norm.codeNumber,
-      createdAt: norm.createdAt,
-      updatedAt: norm.updatedAt
-    };
+    const result = await EthicalNormModel.deleteMany({
+      evaluationId: new Types.ObjectId(evaluationId),
+    });
+
+    return result.deletedCount > 0;
   }
 
   private toDomainEntity(norm: any): EthicalNorm {
@@ -88,7 +91,7 @@ export class EthicalNormRepository implements IEthicalNormRepository {
       cita: norm.cita,
       codeNumber: norm.codeNumber,
       createdAt: norm.createdAt,
-      updatedAt: norm.updatedAt
+      updatedAt: norm.updatedAt,
     };
   }
 }

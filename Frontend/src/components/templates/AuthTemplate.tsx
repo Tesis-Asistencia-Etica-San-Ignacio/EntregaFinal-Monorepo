@@ -1,14 +1,14 @@
 import AuthForm from "@/components/organisms/Auth-form";
 import { FormField } from "@/types/formTypes";
 import { CarouselPlugin, Slide } from "../molecules/Carousel";
-import { LoginInput, User } from "../../types";
+import { CreateUserInput, LoginInput } from "../../types";
 
 interface AuthTemplateProps {
   loginFields: FormField[];
   registryFields: FormField[];
   slides: Slide[];
   onLogin: (values: LoginInput) => Promise<void>;
-  onRegister: (values: User) => Promise<void>;
+  onRegister: (values: CreateUserInput) => Promise<void>;
 }
 
 export default function AuthTemplate({

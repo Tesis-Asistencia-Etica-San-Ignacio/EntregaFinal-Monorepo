@@ -10,5 +10,8 @@ export interface Case {
     updatedAt: Date
   }
 
+export type CreateCase = Omit<Case, 'id' | 'createdAt' | 'updatedAt'>
+export type UpdateCase = Partial<Pick<Case, 'nombre_proyecto' | 'fecha' | 'version' | 'codigo'>>
+
 
   

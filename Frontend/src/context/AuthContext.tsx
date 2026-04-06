@@ -6,14 +6,14 @@ import {
     getSession,
 } from '@/services/authService';
 import { useCreateUser } from '@/hooks/user/useCreateUser';
-import type { User } from '@/types';
+import type { CreateUserInput, User } from '@/types';
 import { DEFAULT_QUERY_OPTIONS, QUERY_KEYS } from '@/lib/api/constants';
 
 interface IAuthContext {
     user: User | null;
     login: (email: string, password: string) => Promise<void>;
     logout: () => Promise<void>;
-    createAccount: (data: any) => Promise<void>;
+    createAccount: (data: CreateUserInput) => Promise<void>;
     refreshSession: () => Promise<void>;
 }
 
@@ -60,7 +60,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     //  Crear cuenta → refetch de sesión
     const { createUser } = useCreateUser();
-    const createAccount = async (data: any): Promise<void> => {
+    const createAccount = async (data: CreateUserInput): Promise<void> => {
         await createUser(data);
         await refreshSession();
     };

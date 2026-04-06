@@ -7,7 +7,7 @@ import "./styles/index.css";
 import App from "./App.tsx";
 import { AuthProvider } from "./context/AuthContext.tsx";
 import { ThemeProvider } from "./context/ThemeContext.tsx";
-import { Toaster } from "sonner";
+import { Toaster } from "@/components/atoms/ui/sonner";
 
 const queryClient = new QueryClient();
 

@@ -24,8 +24,13 @@ const useDeleteEvaluationHook = () => {
         closeButton: true,
       });
     },
-    onSettled: () => {
-      qc.invalidateQueries({ queryKey: QUERY_KEYS.EVALUATIONS });
+    onSettled: async () => {
+      await qc.invalidateQueries({ queryKey: QUERY_KEYS.EVALUATIONS });
+      await qc.refetchQueries({
+        queryKey: QUERY_KEYS.STATS,
+        exact: false,
+        type: 'all',
+      });
     },
   });
 

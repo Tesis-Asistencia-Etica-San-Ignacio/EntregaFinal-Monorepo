@@ -11,3 +11,8 @@ export interface EthicalNorm {
   createdAt: Date;
   updatedAt: Date;
 }
+
+export type CreateEthicalNorm = Omit<EthicalNorm, 'id' | 'createdAt' | 'updatedAt'>;
+export type UpdateEthicalNorm = Partial<
+  Pick<EthicalNorm, 'evaluationId' | 'description' | 'status' | 'justification' | 'cita' | 'codeNumber'>
+>;
