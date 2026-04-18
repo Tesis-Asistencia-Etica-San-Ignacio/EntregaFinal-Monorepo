@@ -4,11 +4,12 @@ import {
     SidebarContent,
     SidebarFooter,
     SidebarHeader,
-    SidebarRail,
+    SidebarTrigger,
 } from "@/components/atoms/ui/sidebar"
 import { NavGroup } from "@/components/molecules/side-navigation/NavGroup"
 import { NavUser } from "@/components/molecules/side-navigation/NavUser"
 import logo from "@/assets/Logo_HUSI_Blanco.png"
+import { useSidebarLayout } from "@/context/SidebarLayoutContext"
 import { User } from "@/types/userType"
 import { flattenNavLinks, isNavCollapsible, type NavLink, type SidebarData } from "@/types/sideBar"
 
@@ -26,15 +27,23 @@ export function AppSidebar({
     getInitials,
     ...props
 }: AppSidebarProps) {
+    const { sidebarLayout } = useSidebarLayout()
     const otrosGroup = sidebarData.navGroups.find((g) => g.title === "Otros")
     const ajustes = otrosGroup?.items.find((i) => i.title === "Ajustes")
     const settingsItems: NavLink[] =
         ajustes && isNavCollapsible(ajustes) ? flattenNavLinks(ajustes.items) : []
 
     return (
-        <Sidebar collapsible="icon" {...props}>
-            <SidebarHeader>
-                <img src={logo} alt="Logo Hospital Universitario San Ignacio" />
+        <Sidebar collapsible={sidebarLayout} {...props}>
+            <SidebarHeader className="flex flex-row items-center justify-between gap-2 px-2 py-2">
+                <img
+                    src={logo}
+                    alt="Logo Hospital Universitario San Ignacio"
+                    className="h-15 w-auto group-data-[collapsible=icon]:hidden"
+                />
+                {sidebarLayout === "icon" && (
+                    <SidebarTrigger className="text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground" />
+                )}
             </SidebarHeader>
 
             <SidebarContent>
@@ -52,7 +61,6 @@ export function AppSidebar({
                 />
             </SidebarFooter>
 
-            <SidebarRail />
         </Sidebar>
     )
 }

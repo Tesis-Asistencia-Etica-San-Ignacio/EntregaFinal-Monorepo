@@ -4,6 +4,7 @@ import {
   SidebarInset,
   SidebarTrigger,
 } from "../atoms/ui/sidebar"
+import { useSidebarLayout } from "@/context/SidebarLayoutContext"
 import { Main } from "../atoms/Main"
 import {
   Breadcrumb,
@@ -31,6 +32,7 @@ export default function LayoutTemplate({
   onLogout,
   getInitials,
 }: LayoutTemplateProps) {
+  const { sidebarLayout } = useSidebarLayout()
   const location = useLocation()
   const locationState = location.state as { breadcrumbLabel?: string } | null
   const segments = location.pathname
@@ -55,8 +57,7 @@ export default function LayoutTemplate({
       />
       <SidebarInset>
         <header className="flex h-16 items-center gap-2 px-4">
-          <SidebarTrigger className="-ml-1" />
-
+          {sidebarLayout === "offcanvas" && <SidebarTrigger className="-ml-1" />}
           <Breadcrumb>
             <BreadcrumbList>
               <BreadcrumbItem>
