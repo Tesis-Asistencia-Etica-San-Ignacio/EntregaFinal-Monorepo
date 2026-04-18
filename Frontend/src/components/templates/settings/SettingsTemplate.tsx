@@ -1,10 +1,10 @@
 import { Outlet } from "react-router-dom"
 import { Separator } from "@/components/atoms/ui/separator"
 import SidebarNav from "@/components/organisms/sidebar-nav"
-import type { NavItem } from "@/types/sideBar"
+import type { NavLink } from "@/types/sideBar"
 
 export interface SettingsTemplateProps {
-    sidebarNavItems: NavItem[]
+    sidebarNavItems: NavLink[]
 }
 
 export default function SettingsTemplate({ sidebarNavItems }: SettingsTemplateProps) {

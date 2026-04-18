@@ -10,10 +10,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/atoms/ui/select'
-import type { NavItem } from "@/types/sideBar"
+import type { NavLink } from "@/types/sideBar"
 
 interface SidebarNavProps extends React.HTMLAttributes<HTMLElement> {
-  items: NavItem[]
+  items: NavLink[]
 }
 
 export default function SidebarNav({

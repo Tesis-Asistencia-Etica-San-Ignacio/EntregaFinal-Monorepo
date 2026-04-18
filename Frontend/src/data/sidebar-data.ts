@@ -22,7 +22,7 @@ export const sidebarData: SidebarData = {
           items: [
             { title: "Cuenta", url: "/ajustes/cuenta", icon: User },
             { title: "Inteligencia artificial", url: "/ajustes/ia", icon: BrainCircuit, roles: ["EVALUADOR"] },
-            { title: "Apariencia", url: "/ajustes/apariencia", icon: Palette }
+            { title: "Apariencia", url: "/ajustes/apariencia", icon: Palette },
           ]
         }
       ]

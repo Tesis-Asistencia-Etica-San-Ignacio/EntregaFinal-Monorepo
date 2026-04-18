@@ -10,7 +10,7 @@ import { NavGroup } from "@/components/molecules/side-navigation/NavGroup"
 import { NavUser } from "@/components/molecules/side-navigation/NavUser"
 import logo from "@/assets/Logo_HUSI_Blanco.png"
 import { User } from "@/types/userType"
-import { SidebarData } from "@/types/sideBar"
+import { flattenNavLinks, isNavCollapsible, type NavLink, type SidebarData } from "@/types/sideBar"
 
 interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
     user: User | null
@@ -28,7 +28,8 @@ export function AppSidebar({
 }: AppSidebarProps) {
     const otrosGroup = sidebarData.navGroups.find((g) => g.title === "Otros")
     const ajustes = otrosGroup?.items.find((i) => i.title === "Ajustes")
-    const settingsItems: any[] = ajustes?.items ?? []
+    const settingsItems: NavLink[] =
+        ajustes && isNavCollapsible(ajustes) ? flattenNavLinks(ajustes.items) : []
 
     return (
         <Sidebar collapsible="icon" {...props}>

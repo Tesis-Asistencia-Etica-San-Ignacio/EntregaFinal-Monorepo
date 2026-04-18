@@ -17,13 +17,13 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/atoms/ui/avata
 import { ChevronsUpDown, LogOut } from "lucide-react"
 import { Link } from "react-router-dom"
 import type { User } from "@/types/userType"
-import type { NavItem } from "@/types/sideBar"
+import type { NavLink } from "@/types/sideBar"
 
 interface NavUserProps {
     user: User | null
     onLogout: () => Promise<void>
     getInitials: () => string
-    settingsItems: NavItem[]
+    settingsItems: NavLink[]
 }
 
 export function NavUser({

@@ -1,45 +1,39 @@
 import { useAuthContext } from "@/context/AuthContext"
 import LayoutTemplate from "@/components/templates/LayoutTemplate"
 import { sidebarData } from "@/data/sidebar-data"
-import type { NavItem, SidebarData } from "@/types/sideBar"
+import { isNavCollapsible, type NavItem, type SidebarData } from "@/types/sideBar"
 
 export default function LayoutScreen() {
     const { user, logout } = useAuthContext()
 
+    function filterNavItemsByRole(items: NavItem[], userRole: string): NavItem[] {
+        return items.flatMap((item) => {
+            if (item.roles && !item.roles.includes(userRole)) {
+                return []
+            }
+
+            if (!isNavCollapsible(item)) {
+                return [item]
+            }
+
+            const filteredChildren = filterNavItemsByRole(item.items, userRole)
+
+            if (!filteredChildren.length) {
+                return []
+            }
+
+            return [{ ...item, items: filteredChildren }]
+        })
+    }
+
     function filterSidebarDataByRole(data: SidebarData, userRole: string): SidebarData {
         return {
-            navGroups: data.navGroups.map(group => ({
-                ...group,
-                items: group.items
-                    .map(item => {
-                        if ("items" in item) {
-                            const filteredSubItems = item.items?.filter(sub => {
-                                if (!sub.roles) return true
-                                return sub.roles.includes(userRole)
-                            }) ?? []
-
-                            return {
-                                title: item.title,
-                                badge: item.badge,
-                                icon: item.icon,
-                                roles: item.roles,
-                                items: filteredSubItems
-                            }
-                        } else {
-                            if (item.roles && !item.roles.includes(userRole)) {
-                                return null
-                            }
-                            return {
-                                title: item.title,
-                                badge: item.badge,
-                                icon: item.icon,
-                                roles: item.roles,
-                                url: item.url
-                            }
-                        }
-                    })
-                    .filter(Boolean) as NavItem[] // Forzamos a NavItem tras filtrar nulos
-            }))
+            navGroups: data.navGroups
+                .map(group => ({
+                    ...group,
+                    items: filterNavItemsByRole(group.items, userRole)
+                }))
+                .filter(group => group.items.length > 0)
         }
     }
 
