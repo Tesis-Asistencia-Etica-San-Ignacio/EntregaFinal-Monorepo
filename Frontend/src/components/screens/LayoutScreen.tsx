@@ -1,29 +1,36 @@
 import { useAuthContext } from "@/context/AuthContext"
 import LayoutTemplate from "@/components/templates/LayoutTemplate"
 import { sidebarData } from "@/data/sidebar-data"
-import { isNavCollapsible, type NavItem, type SidebarData } from "@/types/sideBar"
+import { isNavCollapsible, type NavCollapsible, type NavItem, type SidebarData } from "@/types/sideBar"
 
 export default function LayoutScreen() {
     const { user, logout } = useAuthContext()
 
     function filterNavItemsByRole(items: NavItem[], userRole: string): NavItem[] {
-        return items.flatMap((item) => {
+        return items.reduce<NavItem[]>((acc, item) => {
             if (item.roles && !item.roles.includes(userRole)) {
-                return []
+                return acc
             }
 
             if (!isNavCollapsible(item)) {
-                return [item]
+                acc.push(item)
+                return acc
             }
 
             const filteredChildren = filterNavItemsByRole(item.items, userRole)
 
             if (!filteredChildren.length) {
-                return []
+                return acc
             }
 
-            return [{ ...item, items: filteredChildren }]
-        })
+            const filteredItem: NavCollapsible = {
+                ...item,
+                items: filteredChildren,
+            }
+
+            acc.push(filteredItem)
+            return acc
+        }, [])
     }
 
     function filterSidebarDataByRole(data: SidebarData, userRole: string): SidebarData {

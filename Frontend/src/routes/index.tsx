@@ -17,6 +17,7 @@ const CreateCaseScreen = lazy(() => import("../components/screens/CreateCaseScre
 // rutas de rol
 const EvaluatorRoutes = lazy(() => import("./EvaluatorRoutes"));
 const ResearcherRoutes = lazy(() => import("./ResearcherRoutes"));
+const ProtectedRoutes = lazy(() => import("./ProtectedRoutes"));
 // rutas de ajustes
 const Settings = lazy(() => import("../components/screens/settings/SettingsScreen"));
 const Appearance = lazy(() => import("../components/screens/settings/AppearanceScreen"));
@@ -38,29 +39,31 @@ export const AppRoutes = () => {
           <Route path="/auth" element={<Auth />} />
 
           {/* rutas protegidas bajo Layout */}
-          <Route path="/" element={<Layout />}>
-            {/* Ajustes */}
-            <Route path="ajustes" element={<Settings />}>
-              <Route path="cuenta" element={<Account />} />
-              <Route path="apariencia" element={<Appearance />} />
+          <Route element={<ProtectedRoutes />}>
+            <Route path="/" element={<Layout />}>
+              {/* Ajustes */}
+              <Route path="ajustes" element={<Settings />}>
+                <Route path="cuenta" element={<Account />} />
+                <Route path="apariencia" element={<Appearance />} />
 
-              <Route element={<EvaluatorRoutes />}>
-                <Route path="ia" element={<IASettings />} />
+                <Route element={<EvaluatorRoutes />}>
+                  <Route path="ia" element={<IASettings />} />
+                </Route>
               </Route>
-            </Route>
 
-            {/* Rutas para evaluadores */}
-            <Route element={<EvaluatorRoutes />}>
-              <Route path="estadisticas" element={<Dashboard />} />
-              <Route path="subir-archivos" element={<Dropfiles />} />
-              <Route path="historial-archivos-evaluados" element={<EvaluationHistory />} />
-              <Route path="evaluacion/:evaluationId" element={<Evaluation />} />
-            </Route>
+              {/* Rutas para evaluadores */}
+              <Route element={<EvaluatorRoutes />}>
+                <Route path="estadisticas" element={<Dashboard />} />
+                <Route path="subir-archivos" element={<Dropfiles />} />
+                <Route path="historial-archivos-evaluados" element={<EvaluationHistory />} />
+                <Route path="evaluacion/:evaluationId" element={<Evaluation />} />
+              </Route>
 
-            {/* Rutas para investigadores */}
-            <Route element={<ResearcherRoutes />}>
-              <Route path="crear-nuevo-caso" element={<CreateCaseScreen />} />
-              <Route path="historial-casos" element={<CaseHistory />} />
+              {/* Rutas para investigadores */}
+              <Route element={<ResearcherRoutes />}>
+                <Route path="crear-nuevo-caso" element={<CreateCaseScreen />} />
+                <Route path="historial-casos" element={<CaseHistory />} />
+              </Route>
             </Route>
           </Route>
 

@@ -263,12 +263,12 @@ const CollapsedDropdownTreeItem = ({ item, href }: { item: NavItem; href: string
     )
 }
 
-function normalizePath(path: string) {
+function normalizePath(path: string): string {
     const normalized = path.split('?')[0].replace(/\/+$/, '')
     return normalized === '' ? '/' : normalized
 }
 
-function checkIsActive(href: string, item: NavItem) {
+function checkIsActive(href: string, item: NavItem): boolean {
     if (isNavLink(item)) {
         const normalizedHref = normalizePath(href)
         const normalizedUrl = normalizePath(item.url)
@@ -281,6 +281,6 @@ function checkIsActive(href: string, item: NavItem) {
     return item.items.some((subItem) => checkIsActive(href, subItem))
 }
 
-function getNavItemKey(item: NavItem, index: number) {
+function getNavItemKey(item: NavItem, index: number): string {
     return isNavLink(item) ? `${item.title}-${item.url}` : `${item.title}-group-${index}`
 }
