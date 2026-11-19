@@ -1,8 +1,9 @@
 import nodemailer from "nodemailer";
+import type { Transporter } from "nodemailer";
 import config from "../config/config";
 
 export class SmtpService {
-    private transporter: nodemailer.Transporter;
+    private transporter: Transporter;
 
     constructor() {
         const { host, port, user, pass } = config.smtp;
